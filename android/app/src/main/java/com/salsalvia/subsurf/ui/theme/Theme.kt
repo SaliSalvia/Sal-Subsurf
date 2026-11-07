@@ -1,62 +1,146 @@
 package com.salsalvia.subsurf.ui.theme
 
+import android.app.Activity
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Shapes
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.SideEffect
 import androidx.compose.ui.graphics.Color
-
-private val Teal = Color(0xFF146356)
-private val TealDark = Color(0xFF0C4A40)
-private val TealLight = Color(0xFF63A99C)
-private val Earth = Color(0xFF8A5A2B)
-private val Moss = Color(0xFF546E3C)
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.unit.dp
+import androidx.core.view.WindowCompat
 
 private val LightColors = lightColorScheme(
-    primary = Teal,
+    primary = Teal600,
     onPrimary = Color.White,
-    primaryContainer = TealLight,
-    onPrimaryContainer = Color(0xFF06231E),
-    secondary = Moss,
+    primaryContainer = Teal100,
+    onPrimaryContainer = Teal900,
+    inversePrimary = Teal300,
+
+    secondary = Sage600,
     onSecondary = Color.White,
-    secondaryContainer = Color(0xFFDDE7C9),
-    onSecondaryContainer = Color(0xFF1B2410),
-    tertiary = Earth,
+    secondaryContainer = Sage200,
+    onSecondaryContainer = Color(0xFF172418),
+
+    tertiary = Ochre700,
     onTertiary = Color.White,
-    tertiaryContainer = Color(0xFFF3DFC9),
-    onTertiaryContainer = Color(0xFF2E1A05),
-    background = Color(0xFFF7F9F7),
-    onBackground = Color(0xFF191C1B),
-    surface = Color.White,
-    onSurface = Color(0xFF191C1B),
-    surfaceVariant = Color(0xFFE0E7E3),
-    onSurfaceVariant = Color(0xFF3F4945),
-    error = Color(0xFFB3261E),
+    tertiaryContainer = Ochre100,
+    onTertiaryContainer = Color(0xFF2B1E00),
+
+    background = Mist50,
+    onBackground = Ink900,
+    surface = Paper,
+    onSurface = Ink900,
+    surfaceVariant = Mist200,
+    onSurfaceVariant = Slate600,
+    surfaceTint = Teal600,
+    surfaceContainerLowest = Color.White,
+    surfaceContainerLow = Color(0xFFFAFCFA),
+    surfaceContainer = Mist100,
+    surfaceContainerHigh = Mist200,
+    surfaceContainerHighest = Mist300,
+    inverseSurface = Ink700,
+    inverseOnSurface = Mist100,
+
+    outline = Mist500,
+    outlineVariant = Mist300,
+
+    error = ErrorLight,
     onError = Color.White,
+    errorContainer = ErrorContainerLight,
+    onErrorContainer = Color(0xFF410E0B),
 )
 
 private val DarkColors = darkColorScheme(
-    primary = TealLight,
-    onPrimary = Color(0xFF06231E),
-    primaryContainer = Teal,
-    onPrimaryContainer = Color(0xFFCDEDE4),
-    secondary = Color(0xFFB5CBA0),
-    onSecondary = Color(0xFF22301A),
-    tertiary = Color(0xFFE0BE99),
-    onTertiary = Color(0xFF2E1A05),
-    background = Color(0xFF121413),
-    onBackground = Color(0xFFE1E3E1),
-    surface = Color(0xFF181B1A),
-    onSurface = Color(0xFFE1E3E1),
-    surfaceVariant = Color(0xFF3F4945),
-    onSurfaceVariant = Color(0xFFBFC9C4),
-    error = Color(0xFFF2B8B5),
+    primary = Teal300,
+    onPrimary = Teal900,
+    primaryContainer = Teal700,
+    onPrimaryContainer = Teal100,
+    inversePrimary = Teal600,
+
+    secondary = Sage300,
+    onSecondary = Color(0xFF1B291C),
+    secondaryContainer = Color(0xFF33462F),
+    onSecondaryContainer = Sage200,
+
+    tertiary = Ochre300,
+    onTertiary = Color(0xFF3A2A00),
+    tertiaryContainer = Color(0xFF584200),
+    onTertiaryContainer = Ochre100,
+
+    background = Night900,
+    onBackground = Night100,
+    surface = Night850,
+    onSurface = Night100,
+    surfaceVariant = Night700,
+    onSurfaceVariant = Night200,
+    surfaceTint = Teal300,
+    surfaceContainerLowest = Night950,
+    surfaceContainerLow = Night900,
+    surfaceContainer = Night800,
+    surfaceContainerHigh = Night750,
+    surfaceContainerHighest = Night700,
+    inverseSurface = Night100,
+    inverseOnSurface = Night800,
+
+    outline = Night600,
+    outlineVariant = Night700,
+
+    error = ErrorDark,
     onError = Color(0xFF601410),
+    errorContainer = ErrorContainerDark,
+    onErrorContainer = Color(0xFFF9DEDC),
 )
 
+/** Generous, softly rounded corners — reads as a modern consumer product rather than a tool. */
+val SubsurfShapes = Shapes(
+    extraSmall = androidx.compose.foundation.shape.RoundedCornerShape(6.dp),
+    small = androidx.compose.foundation.shape.RoundedCornerShape(10.dp),
+    medium = androidx.compose.foundation.shape.RoundedCornerShape(16.dp),
+    large = androidx.compose.foundation.shape.RoundedCornerShape(22.dp),
+    extraLarge = androidx.compose.foundation.shape.RoundedCornerShape(28.dp),
+)
+
+/** Extra design tokens that are not part of [MaterialTheme] (spacing / elevation scale). */
+object Dims {
+    val xs = 4.dp
+    val s = 8.dp
+    val m = 12.dp
+    val l = 16.dp
+    val xl = 20.dp
+    val xxl = 28.dp
+
+    /** Height of the floating sheet handle area. */
+    val handle = 26.dp
+    val minTouch = 48.dp
+}
+
 @Composable
-fun SubsurfTheme(content: @Composable () -> Unit) {
-    val colors = if (isSystemInDarkTheme()) DarkColors else LightColors
-    MaterialTheme(colorScheme = colors, content = content)
+fun SubsurfTheme(
+    darkTheme: Boolean = isSystemInDarkTheme(),
+    content: @Composable () -> Unit,
+) {
+    val colors = if (darkTheme) DarkColors else LightColors
+    val view = LocalView.current
+    if (!view.isInEditMode) {
+        val context = LocalContext.current
+        SideEffect {
+            val window = (context as? Activity)?.window ?: return@SideEffect
+            // Edge-to-edge: the system bars stay transparent and their icons flip with the theme.
+            WindowCompat.getInsetsController(window, view).apply {
+                isAppearanceLightStatusBars = !darkTheme
+                isAppearanceLightNavigationBars = !darkTheme
+            }
+        }
+    }
+    MaterialTheme(
+        colorScheme = colors,
+        typography = SubsurfTypography,
+        shapes = SubsurfShapes,
+        content = content,
+    )
 }
