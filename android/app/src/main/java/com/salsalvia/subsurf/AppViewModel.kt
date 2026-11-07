@@ -30,7 +30,7 @@ data class UiState(
     val catalog: CatalogResponse? = null,
     val terrain: TerrainResponse? = null,
     /** Purely presentational: how the user wants light/dark resolved. */
-    val themeMode: ThemeMode = ThemeMode.SYSTEM,
+    val themeMode: ThemeMode = ThemeMode.DARK,
 )
 
 class AppViewModel(app: Application) : AndroidViewModel(app) {

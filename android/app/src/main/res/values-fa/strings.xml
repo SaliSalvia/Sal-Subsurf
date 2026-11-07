@@ -2,6 +2,28 @@
 <resources>
     <string name="app_name">ساب‌سرفیس‌اکسپلورر</string>
 
+    <!-- جریان کاوش (کره → قفل → مرزبندی → جمع‌آوری) -->
+    <string name="map_globe">بازگشت به کره زمین</string>
+    <string name="map_recenter">واسطه‌یابی</string>
+    <string name="action_lock">قفل</string>
+    <string name="action_unlock">باز کردن قفل</string>
+    <string name="action_start_run">جمع‌آوری داده‌های این محدوده</string>
+    <string name="hint_explore">به محدودهٔ خود پرواز کنید، سپس «قفل» را بزنید تا مرزبندی آغاز شود</string>
+    <string name="hint_pan_zoom">برای جابه‌جایی بکشید · برای بزرگ‌نمایی دو انگشت بگذارید</string>
+    <string name="hint_trace_first">دوربین قفل شد — برای گذاشتن نخستین گوشه روی نقشه بزنید</string>
+    <string name="hint_trace_more">برای بستن مرز به زدن ادامه دهید (۳ تا ۱۰ نقطه)</string>
+    <string name="hint_locked_ready">مرز آماده است — جمع‌آوری داده را شروع کنید</string>
+    <string name="sheet_title_empty">کاوش کره زمین</string>
+    <string name="sheet_title_tracing">مرزبندی محدوده</string>
+    <string name="sheet_title_locked">محدوده قفل شد</string>
+    <string name="sheet_sub_explore">آزادانه جابه‌جا و بزرگ‌نمایی کنید، مانند یک اپ نقشه</string>
+    <string name="sheet_sub_tracing">هر ضربه یک گوشه از مرز نقطه‌چین را اضافه می‌کند</string>
+    <string name="collect_title">در حال جمع‌آوری داده‌های محدودهٔ شما</string>
+    <string name="collect_sub">محدوده با %1$d گوشه تأیید شد — کاتالوگ ماهواره و محصولات زمینی دریافت می‌شود</string>
+    <string name="collect_step_validate">هندسهٔ محدوده تأیید شد</string>
+    <string name="collect_step_catalog">دریافت کاتالوگ سنتینل-۲ L2A</string>
+    <string name="collect_step_terrain">آماده‌سازی شاخص‌های زمینی DEM آزاد</string>
+
     <!-- نوار پایین -->
     <string name="tab_map">نقشه</string>
     <string name="tab_results">نتایج</string>
@@ -11,13 +33,7 @@
     <string name="map_title">محدوده پیمایش</string>
     <string name="action_undo">برگرداندن</string>
     <string name="action_clear">پاک کردن</string>
-    <string name="action_analyze">تحلیل</string>
-    <string name="analyzing">در حال تحلیل محدوده…</string>
     <string name="analyzing_short">تحلیل</string>
-    <string name="vertices_format">رأس‌ها: %1$d / ۱۰</string>
-    <string name="vertices_short">%1$d از %2$d رأس</string>
-    <string name="area_format">مساحت: %1$s</string>
-    <string name="tap_to_add_vertex">برای گذاشتن نخستین رأس، روی نقشه بزنید</string>
     <string name="need_three_vertices">ابتدا حداقل ۳ رأس اضافه کنید</string>
     <string name="max_vertices">حداکثر ۱۰ رأس مجاز است</string>
     <string name="offline_valid_bad">بررسی محلی: محدوده نامعتبر است</string>
@@ -25,10 +41,7 @@
     <string name="metric_area">مساحت</string>
     <string name="metric_perimeter">محیط</string>
     <string name="metric_vertices">رأس‌ها</string>
-    <string name="sheet_title">محدوده پیمایش</string>
     <string name="sheet_title_empty">یک پیمایش تازه را شروع کنید</string>
-    <string name="sheet_sub_need_more">برای ساخت چندضلعی %1$d رأس دیگر لازم است</string>
-    <string name="sheet_sub_ready">محدوده آماده است — هر وقت خواستید تحلیل را اجرا کنید</string>
 
     <!-- صفحه نتایج -->
     <string name="results_title">نتایج تحلیل</string>
@@ -42,13 +55,10 @@
     <string name="valid_region">محدوده معتبر است</string>
     <string name="invalid_region">محدوده نامعتبر است</string>
     <string name="issues_title">اشکال‌ها</string>
-    <string name="area_hectares_format">%1$s هکتار</string>
     <string name="perimeter_format">%1$s متر</string>
     <string name="catalog_card">محصولات سنتینل-۲ (L2A)</string>
-    <string name="products_found">%1$d محصول منطبق</string>
     <string name="no_products">هیچ محصولی با پالایه‌های کنونی همخوان نیست.</string>
     <string name="total_matched_format">مجموع در کاتالوگ: %1$d</string>
-    <string name="cloud_cover_format">پوشش ابر: %1$s٪</string>
     <string name="cloud_cover_short">ابر %1$s٪</string>
     <string name="size_format">%1$s مگابایت</string>
     <string name="terrain_card">شاخص‌های زمینی</string>
@@ -58,14 +68,10 @@
     <string name="computing">در حال محاسبه…</string>
     <string name="elevation_format">%1$s تا %2$s متر</string>
     <string name="elevation_range_label">دامنهٔ ارتفاع</string>
-    <string name="slope_mean_format">شیب (میانگین): %1$s°</string>
-    <string name="slope_max_format">شیب (بیشینه): %1$s°</string>
     <string name="slope_max_label">بیشینهٔ شیب</string>
     <string name="metric_mean_elevation">میانگین ارتفاع</string>
     <string name="metric_mean_slope">میانگین شیب</string>
-    <string name="metric_slope">شیب</string>
     <string name="metric_roughness">زبری (TRI)</string>
-    <string name="roughness_format">زبری (TRI): %1$s</string>
     <string name="resolution_format">حدود %1$s متر/پیکسل</string>
     <string name="dem_resolution_label">وضوح DEM</string>
     <string name="tiles_label">کاشی‌های DEM دریافت‌شده</string>
@@ -84,8 +90,6 @@
     <string name="component_roughness">زبری</string>
     <string name="component_gradient_consistency">انسجام جهت شیب</string>
     <string name="component_relief">اختلاف ارتفاع</string>
-    <string name="anomaly_score_format">نمره ناهنجاری سطح: %1$s</string>
-    <string name="gradient_consistency_format">انسجام جهت شیب: %1$s</string>
     <string name="provenance_title">خاستگاه داده‌ها</string>
     <string name="caveats_title">تذکرهای علمی</string>
     <string name="warnings_title">هشدارها</string>
@@ -100,7 +104,6 @@
     <string name="settings_test">تست</string>
     <string name="settings_testing">در حال تست…</string>
     <string name="settings_test_ok">متصل شد — نسخه سرور %1$s</string>
-    <string name="settings_test_fail">اتصال برقرار نشد</string>
     <string name="settings_test_fail_detail">اتصال برقرار نشد — %1$s</string>
     <string name="settings_appearance">ظاهر برنامه</string>
     <string name="settings_theme_title">تم</string>

@@ -39,6 +39,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
@@ -66,6 +67,23 @@ fun AppRoot(vm: AppViewModel) {
     var tabIndex by rememberSaveable { mutableIntStateOf(0) }
     val tabs = Tab.entries
     val snackbar = remember { SnackbarHostState() }
+
+    // "Collect everything" orchestration: once the satellite catalog for the locked area has
+    // arrived, the terrain indicators are fetched automatically so a single run produces the
+    // complete report. This is pure UI choreography — the ViewModel/backend calls are unchanged.
+    var terrainRequested by remember { mutableStateOf(false) }
+    LaunchedEffect(state.catalog, state.terrain, state.terrainBusy) {
+        if (!terrainRequested && state.catalog != null && state.terrain == null && !state.terrainBusy) {
+            // Only auto-run when a valid sketch exists (the terrain endpoint needs a polygon).
+            if (state.vertices.size >= 3) {
+                terrainRequested = true
+                vm.computeTerrain()
+            }
+        }
+    }
+    LaunchedEffect(state.validation) {
+        if (state.validation == null) terrainRequested = false
+    }
 
     LaunchedEffect(state.message) {
         state.message?.let {

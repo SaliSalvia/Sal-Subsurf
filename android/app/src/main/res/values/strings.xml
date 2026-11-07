@@ -2,6 +2,28 @@
 <resources>
     <string name="app_name">SubsurfaceExplorer</string>
 
+    <!-- Exploration flow (globe → lock → trace → collect) -->
+    <string name="map_globe">Back to globe</string>
+    <string name="map_recenter">Recenter</string>
+    <string name="action_lock">Lock</string>
+    <string name="action_unlock">Unlock</string>
+    <string name="action_start_run">Collect data for this area</string>
+    <string name="hint_explore">Fly to your area, then tap Lock to start tracing it</string>
+    <string name="hint_pan_zoom">Drag to pan · pinch to zoom</string>
+    <string name="hint_trace_first">Camera locked — tap the map to place the first corner</string>
+    <string name="hint_trace_more">Keep tapping to close the boundary (3–10 points)</string>
+    <string name="hint_locked_ready">Boundary ready — start the data collection run</string>
+    <string name="sheet_title_empty">Explore the globe</string>
+    <string name="sheet_title_tracing">Tracing boundary</string>
+    <string name="sheet_title_locked">Area locked</string>
+    <string name="sheet_sub_explore">Pan and zoom freely, like a maps app</string>
+    <string name="sheet_sub_tracing">Each tap adds a corner of the dashed boundary</string>
+    <string name="collect_title">Collecting data for your area</string>
+    <string name="collect_sub">Region validated with %1$d corners — pulling satellite catalog and terrain products</string>
+    <string name="collect_step_validate">Region geometry validated</string>
+    <string name="collect_step_catalog">Fetching Sentinel-2 L2A catalog</string>
+    <string name="collect_step_terrain">Preparing open DEM terrain indicators</string>
+
     <!-- Bottom navigation -->
     <string name="tab_map">Map</string>
     <string name="tab_results">Results</string>
@@ -11,13 +33,7 @@
     <string name="map_title">Survey region</string>
     <string name="action_undo">Undo</string>
     <string name="action_clear">Clear</string>
-    <string name="action_analyze">Analyze</string>
-    <string name="analyzing">Analyzing region…</string>
     <string name="analyzing_short">Analyzing</string>
-    <string name="vertices_format">Vertices: %1$d / 10</string>
-    <string name="vertices_short">%1$d/%2$d vertices</string>
-    <string name="area_format">Area: %1$s</string>
-    <string name="tap_to_add_vertex">Tap the map to place the first survey vertex</string>
     <string name="need_three_vertices">Add at least 3 vertices first</string>
     <string name="max_vertices">Maximum is 10 vertices</string>
     <string name="offline_valid_bad">Local check: region is invalid</string>
@@ -25,10 +41,7 @@
     <string name="metric_area">Area</string>
     <string name="metric_perimeter">Perimeter</string>
     <string name="metric_vertices">Vertices</string>
-    <string name="sheet_title">Survey region</string>
     <string name="sheet_title_empty">Start a new survey</string>
-    <string name="sheet_sub_need_more">%1$d more vertex(es) needed for a polygon</string>
-    <string name="sheet_sub_ready">Region ready — run the analysis when you are set</string>
 
     <!-- Results screen -->
     <string name="results_title">Analysis results</string>
@@ -42,13 +55,10 @@
     <string name="valid_region">Region is valid</string>
     <string name="invalid_region">Region is invalid</string>
     <string name="issues_title">Issues</string>
-    <string name="area_hectares_format">%1$s ha</string>
     <string name="perimeter_format">%1$s m</string>
     <string name="catalog_card">Sentinel-2 products (L2A)</string>
-    <string name="products_found">%1$d matching products</string>
     <string name="no_products">No products match the current filters.</string>
     <string name="total_matched_format">Total in catalog: %1$d</string>
-    <string name="cloud_cover_format">Cloud cover: %1$s%%</string>
     <string name="cloud_cover_short">%1$s%% cloud</string>
     <string name="size_format">%1$s MB</string>
     <string name="terrain_card">Terrain indicators</string>
@@ -58,14 +68,10 @@
     <string name="computing">Computing…</string>
     <string name="elevation_format">%1$s – %2$s m</string>
     <string name="elevation_range_label">Elevation range</string>
-    <string name="slope_mean_format">Slope (mean): %1$s°</string>
-    <string name="slope_max_format">Slope (max): %1$s°</string>
     <string name="slope_max_label">Maximum slope</string>
     <string name="metric_mean_elevation">Mean elevation</string>
     <string name="metric_mean_slope">Mean slope</string>
-    <string name="metric_slope">Slope</string>
     <string name="metric_roughness">Roughness (TRI)</string>
-    <string name="roughness_format">Roughness (TRI): %1$s</string>
     <string name="resolution_format">~%1$s m/px</string>
     <string name="dem_resolution_label">DEM resolution</string>
     <string name="tiles_label">DEM tiles fetched</string>
@@ -84,8 +90,6 @@
     <string name="component_roughness">Roughness</string>
     <string name="component_gradient_consistency">Gradient consistency</string>
     <string name="component_relief">Relief</string>
-    <string name="anomaly_score_format">Surface anomaly score: %1$s</string>
-    <string name="gradient_consistency_format">Gradient consistency: %1$s</string>
     <string name="provenance_title">Data provenance</string>
     <string name="caveats_title">Scientific caveats</string>
     <string name="warnings_title">Warnings</string>
@@ -100,7 +104,6 @@
     <string name="settings_test">Test</string>
     <string name="settings_testing">Testing…</string>
     <string name="settings_test_ok">Connected — backend v%1$s</string>
-    <string name="settings_test_fail">Connection failed</string>
     <string name="settings_test_fail_detail">Connection failed — %1$s</string>
     <string name="settings_appearance">Appearance</string>
     <string name="settings_theme_title">Theme</string>

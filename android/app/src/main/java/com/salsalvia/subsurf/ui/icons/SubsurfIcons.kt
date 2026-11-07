@@ -408,6 +408,98 @@ object SubsurfIcons {
         }
     }
 
+    /** Closed padlock — "lock this area and start tracing it". */
+    val Lock: ImageVector by lazy {
+        ImageVector.Builder(
+            name = "Lock",
+            defaultWidth = 24.dp,
+            defaultHeight = 24.dp,
+            viewportWidth = 24f,
+            viewportHeight = 24f,
+        ).apply {
+            path(
+                stroke = SolidColor(Color.Black),
+                strokeLineWidth = 1.8f,
+                strokeLineCap = StrokeCap.Round,
+                pathBuilder = {
+                    moveTo(7.4f, 10.4f)
+                    lineTo(7.4f, 7.6f)
+                    arcToRelative(4.6f, 4.6f, 0f, false, true, 9.2f, 0f)
+                    lineTo(16.6f, 10.4f)
+                },
+            )
+            path(
+                stroke = SolidColor(Color.Black),
+                strokeLineWidth = 1.8f,
+                strokeLineJoin = StrokeJoin.Round,
+                pathBuilder = {
+                    moveTo(5f, 10.4f)
+                    lineTo(19f, 10.4f)
+                    lineTo(19f, 20.4f)
+                    lineTo(5f, 20.4f)
+                    close()
+                },
+            )
+            path(fill = SolidColor(Color.Black), pathBuilder = {
+                moveTo(12f, 13.6f)
+                arcToRelative(1.5f, 1.5f, 0f, true, true, 0f, 3f)
+                arcToRelative(1.5f, 1.5f, 0f, true, true, 0f, -3f)
+                close()
+                moveTo(11.2f, 16.2f)
+                lineTo(12.8f, 16.2f)
+                lineTo(13.1f, 18.6f)
+                lineTo(10.9f, 18.6f)
+                close()
+            })
+        }.build()
+    }
+
+    /** Open padlock — "unlock and go back to free navigation". */
+    val Unlock: ImageVector by lazy {
+        ImageVector.Builder(
+            name = "Unlock",
+            defaultWidth = 24.dp,
+            defaultHeight = 24.dp,
+            viewportWidth = 24f,
+            viewportHeight = 24f,
+        ).apply {
+            path(
+                stroke = SolidColor(Color.Black),
+                strokeLineWidth = 1.8f,
+                strokeLineCap = StrokeCap.Round,
+                pathBuilder = {
+                    moveTo(7.4f, 10.4f)
+                    lineTo(7.4f, 7.6f)
+                    arcToRelative(4.6f, 4.6f, 0f, false, true, 9.2f, 0f)
+                    lineTo(16.6f, 12.2f)
+                },
+            )
+            path(
+                stroke = SolidColor(Color.Black),
+                strokeLineWidth = 1.8f,
+                strokeLineJoin = StrokeJoin.Round,
+                pathBuilder = {
+                    moveTo(5f, 10.4f)
+                    lineTo(19f, 10.4f)
+                    lineTo(19f, 20.4f)
+                    lineTo(5f, 20.4f)
+                    close()
+                },
+            )
+            path(fill = SolidColor(Color.Black), pathBuilder = {
+                moveTo(12f, 13.6f)
+                arcToRelative(1.5f, 1.5f, 0f, true, true, 0f, 3f)
+                arcToRelative(1.5f, 1.5f, 0f, true, true, 0f, -3f)
+                close()
+                moveTo(11.2f, 16.2f)
+                lineTo(12.8f, 16.2f)
+                lineTo(13.1f, 18.6f)
+                lineTo(10.9f, 18.6f)
+                close()
+            })
+        }.build()
+    }
+
     /** Plus / zoom in. */
     val Plus: ImageVector by lazy {
         lineIcon("Plus") {
