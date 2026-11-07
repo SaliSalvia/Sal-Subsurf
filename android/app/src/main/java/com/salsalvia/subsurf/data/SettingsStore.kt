@@ -4,7 +4,13 @@ import android.content.Context
 import android.content.SharedPreferences
 import com.salsalvia.subsurf.BuildConfig
 
-/** Tiny persistence layer: only the backend base URL is stored locally. */
+/** How the app chooses between the light and the dark palette. */
+enum class ThemeMode { SYSTEM, LIGHT, DARK }
+
+/**
+ * Tiny persistence layer for presentation preferences plus the backend base URL.
+ * Only the backend base URL affects behaviour; the rest is purely cosmetic.
+ */
 class SettingsStore(context: Context) {
 
     private val prefs: SharedPreferences =
@@ -17,8 +23,18 @@ class SettingsStore(context: Context) {
             prefs.edit().putString(KEY_URL, value).apply()
         }
 
+    var themeMode: ThemeMode
+        get() {
+            val raw = prefs.getString(KEY_THEME, null) ?: return ThemeMode.SYSTEM
+            return ThemeMode.entries.firstOrNull { it.name == raw } ?: ThemeMode.SYSTEM
+        }
+        set(value) {
+            prefs.edit().putString(KEY_THEME, value.name).apply()
+        }
+
     companion object {
         private const val PREFS_NAME = "subsurf_settings"
         private const val KEY_URL = "api_base_url"
+        private const val KEY_THEME = "theme_mode"
     }
 }

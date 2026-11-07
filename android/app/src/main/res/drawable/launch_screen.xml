@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Branded launch window: a solid themed background with the app mark centred at 33 % of the
+  shortest side (the same proportion the platform uses for splash icons), so the hand-off from
+  the window background to the first Compose frame is seamless.
+-->
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:drawable="@color/splash_background" />
+    <item
+        android:width="128dp"
+        android:height="128dp"
+        android:gravity="center"
+        android:drawable="@drawable/ic_splash_mark" />
+</layer-list>

@@ -6,6 +6,7 @@ import androidx.lifecycle.viewModelScope
 import com.salsalvia.subsurf.data.ApiClient
 import com.salsalvia.subsurf.data.CatalogRequest
 import com.salsalvia.subsurf.data.SettingsStore
+import com.salsalvia.subsurf.data.ThemeMode
 import com.salsalvia.subsurf.data.RegionRequest
 import com.salsalvia.subsurf.data.CatalogResponse
 import com.salsalvia.subsurf.data.TerrainResponse
@@ -28,12 +29,16 @@ data class UiState(
     val validation: ValidationResponse? = null,
     val catalog: CatalogResponse? = null,
     val terrain: TerrainResponse? = null,
+    /** Purely presentational: how the user wants light/dark resolved. */
+    val themeMode: ThemeMode = ThemeMode.SYSTEM,
 )
 
 class AppViewModel(app: Application) : AndroidViewModel(app) {
 
     private val settings = SettingsStore(app)
-    private val _state = MutableStateFlow(UiState(apiBaseUrl = settings.apiBaseUrl))
+    private val _state = MutableStateFlow(
+        UiState(apiBaseUrl = settings.apiBaseUrl, themeMode = settings.themeMode),
+    )
     val state: StateFlow<UiState> = _state
 
     private fun ctx() = getApplication<Application>()
@@ -68,6 +73,12 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
 
     fun clear() = _state.update {
         it.copy(vertices = emptyList(), validation = null, catalog = null, terrain = null)
+    }
+
+    /** Cycles / selects the appearance mode; the choice is remembered locally. */
+    fun setThemeMode(mode: ThemeMode) {
+        settings.themeMode = mode
+        _state.update { it.copy(themeMode = mode) }
     }
 
     fun saveBaseUrl(url: String) {
