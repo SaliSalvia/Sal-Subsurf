@@ -23,12 +23,12 @@ object SubsurfIcons {
             viewportWidth = 24f,
             viewportHeight = 24f,
         ).apply {
-            path(
+            addPath(
+                pathData = block,
                 stroke = SolidColor(Color.Black),
                 strokeLineWidth = 1.8f,
                 strokeLineCap = StrokeCap.Round,
                 strokeLineJoin = StrokeJoin.Round,
-                pathBuilder = block,
             )
         }.build()
 
@@ -40,7 +40,10 @@ object SubsurfIcons {
             viewportWidth = 24f,
             viewportHeight = 24f,
         ).apply {
-            path(fill = SolidColor(Color.Black), pathBuilder = block)
+            addPath(
+                pathData = block,
+                fill = SolidColor(Color.Black),
+            )
         }.build()
 
     /** Survey region: a closed sketch polygon with vertex dots. */
@@ -52,11 +55,11 @@ object SubsurfIcons {
             viewportWidth = 24f,
             viewportHeight = 24f,
         ).apply {
-            path(
+            addPath(
                 stroke = SolidColor(Color.Black),
                 strokeLineWidth = 1.8f,
                 strokeLineJoin = StrokeJoin.Round,
-                pathBuilder = {
+                pathData = {
                     moveTo(4.6f, 8.6f)
                     lineTo(12f, 3.6f)
                     lineTo(19.8f, 8.1f)
@@ -65,7 +68,7 @@ object SubsurfIcons {
                     close()
                 },
             )
-            path(fill = SolidColor(Color.Black), pathBuilder = {
+            addPath(fill = SolidColor(Color.Black), pathData = {
                 moveTo(12.0f, 2.9f)
                     arcToRelative(1.3f, 1.3f, 0f, true, true, 0f, 2.6f)
                     arcToRelative(1.3f, 1.3f, 0f, true, true, 0f, -2.6f)
@@ -129,17 +132,17 @@ object SubsurfIcons {
             viewportWidth = 24f,
             viewportHeight = 24f,
         ).apply {
-            path(
+            addPath(
                 stroke = SolidColor(Color.Black),
                 strokeLineWidth = 1.8f,
-                pathBuilder = {
+                pathData = {
                     moveTo(12f, 3f)
                     arcToRelative(9f, 9f, 0f, true, true, 0f, 18f)
                     arcToRelative(9f, 9f, 0f, true, true, 0f, -18f)
                     close()
                 },
             )
-            path(fill = SolidColor(Color.Black), pathBuilder = {
+            addPath(fill = SolidColor(Color.Black), pathData = {
                 moveTo(12f, 3.2f)
                 arcToRelative(8.8f, 8.8f, 0f, true, true, 0f, 17.6f)
                 arcToRelative(8.8f, 8.8f, 0f, true, true, 0f, -17.6f)
@@ -157,11 +160,11 @@ object SubsurfIcons {
             viewportWidth = 24f,
             viewportHeight = 24f,
         ).apply {
-            path(
+            addPath(
                 stroke = SolidColor(Color.Black),
                 strokeLineWidth = 1.8f,
                 strokeLineCap = StrokeCap.Round,
-                pathBuilder = {
+                pathData = {
                     moveTo(3f, 8.5f)
                     arcTo(13f, 13f, 0f, false, true, 21f, 8.5f)
                     moveTo(6.2f, 12.4f)
@@ -170,7 +173,7 @@ object SubsurfIcons {
                     arcTo(4.2f, 4.2f, 0f, false, true, 14.6f, 16.2f)
                 },
             )
-            path(fill = SolidColor(Color.Black), pathBuilder = {
+            addPath(fill = SolidColor(Color.Black), pathData = {
                 moveTo(12.0f, 17.4f)
                     arcToRelative(2.1f, 2.1f, 0f, true, true, 0f, 4.2f)
                     arcToRelative(2.1f, 2.1f, 0f, true, true, 0f, -4.2f)
@@ -188,17 +191,17 @@ object SubsurfIcons {
             viewportWidth = 24f,
             viewportHeight = 24f,
         ).apply {
-            path(
+            addPath(
                 stroke = SolidColor(Color.Black),
                 strokeLineWidth = 1.8f,
-                pathBuilder = {
+                pathData = {
                     moveTo(12f, 3f)
                     arcToRelative(9f, 9f, 0f, true, true, 0f, 18f)
                     arcToRelative(9f, 9f, 0f, true, true, 0f, -18f)
                     close()
                 },
             )
-            path(fill = SolidColor(Color.Black), pathBuilder = {
+            addPath(fill = SolidColor(Color.Black), pathData = {
                 moveTo(16.2f, 7.8f)
                 lineTo(13.6f, 13.6f)
                 lineTo(7.8f, 16.2f)
@@ -327,11 +330,11 @@ object SubsurfIcons {
             viewportWidth = 24f,
             viewportHeight = 24f,
         ).apply {
-            path(
+            addPath(
                 stroke = SolidColor(Color.Black),
                 strokeLineWidth = 1.8f,
                 strokeLineJoin = StrokeJoin.Round,
-                pathBuilder = {
+                pathData = {
                     moveTo(12f, 3f)
                     curveTo(7.1f, 3f, 3f, 7.1f, 3f, 12f)
                     curveTo(3f, 16.9f, 7.1f, 21f, 12f, 21f)
@@ -343,7 +346,7 @@ object SubsurfIcons {
                     close()
                 },
             )
-            path(fill = SolidColor(Color.Black), pathBuilder = {
+            addPath(fill = SolidColor(Color.Black), pathData = {
                 moveTo(7.4f, 11.6f)
                     arcToRelative(1.6f, 1.6f, 0f, true, true, 0f, 3.2f)
                     arcToRelative(1.6f, 1.6f, 0f, true, true, 0f, -3.2f)
@@ -417,22 +420,22 @@ object SubsurfIcons {
             viewportWidth = 24f,
             viewportHeight = 24f,
         ).apply {
-            path(
+            addPath(
                 stroke = SolidColor(Color.Black),
                 strokeLineWidth = 1.8f,
                 strokeLineCap = StrokeCap.Round,
-                pathBuilder = {
+                pathData = {
                     moveTo(7.4f, 10.4f)
                     lineTo(7.4f, 7.6f)
                     arcToRelative(4.6f, 4.6f, 0f, false, true, 9.2f, 0f)
                     lineTo(16.6f, 10.4f)
                 },
             )
-            path(
+            addPath(
                 stroke = SolidColor(Color.Black),
                 strokeLineWidth = 1.8f,
                 strokeLineJoin = StrokeJoin.Round,
-                pathBuilder = {
+                pathData = {
                     moveTo(5f, 10.4f)
                     lineTo(19f, 10.4f)
                     lineTo(19f, 20.4f)
@@ -440,7 +443,7 @@ object SubsurfIcons {
                     close()
                 },
             )
-            path(fill = SolidColor(Color.Black), pathBuilder = {
+            addPath(fill = SolidColor(Color.Black), pathData = {
                 moveTo(12f, 13.6f)
                 arcToRelative(1.5f, 1.5f, 0f, true, true, 0f, 3f)
                 arcToRelative(1.5f, 1.5f, 0f, true, true, 0f, -3f)
@@ -463,22 +466,22 @@ object SubsurfIcons {
             viewportWidth = 24f,
             viewportHeight = 24f,
         ).apply {
-            path(
+            addPath(
                 stroke = SolidColor(Color.Black),
                 strokeLineWidth = 1.8f,
                 strokeLineCap = StrokeCap.Round,
-                pathBuilder = {
+                pathData = {
                     moveTo(7.4f, 10.4f)
                     lineTo(7.4f, 7.6f)
                     arcToRelative(4.6f, 4.6f, 0f, false, true, 9.2f, 0f)
                     lineTo(16.6f, 12.2f)
                 },
             )
-            path(
+            addPath(
                 stroke = SolidColor(Color.Black),
                 strokeLineWidth = 1.8f,
                 strokeLineJoin = StrokeJoin.Round,
-                pathBuilder = {
+                pathData = {
                     moveTo(5f, 10.4f)
                     lineTo(19f, 10.4f)
                     lineTo(19f, 20.4f)
@@ -486,7 +489,7 @@ object SubsurfIcons {
                     close()
                 },
             )
-            path(fill = SolidColor(Color.Black), pathBuilder = {
+            addPath(fill = SolidColor(Color.Black), pathData = {
                 moveTo(12f, 13.6f)
                 arcToRelative(1.5f, 1.5f, 0f, true, true, 0f, 3f)
                 arcToRelative(1.5f, 1.5f, 0f, true, true, 0f, -3f)
