@@ -50,7 +50,24 @@ jobs:
           KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
         run: |
           chmod +x gradlew
-          ./gradlew --no-daemon --stacktrace :app:assembleDebug :app:assembleRelease :app:testDebugUnitTest
+          set -o pipefail
+          # Kotlin/AGP diagnostics are echoed as ::error:: workflow annotations as well: they show
+          # up in the job summary and the API, which makes failures readable without the log blob.
+          ./gradlew --no-daemon --stacktrace :app:assembleDebug :app:assembleRelease :app:testDebugUnitTest \
+            2>&1 | tee build.log | grep -E "^(e: |w: .*warning|FAILURE:|> )" || true
+          STATUS=${PIPESTATUS[0]}
+          if [ "$STATUS" -ne 0 ]; then
+            echo "::group::Gradle failure context"
+            tail -n 120 build.log
+            echo "::endgroup::"
+            grep -E "^e: " build.log | head -n 30 | while IFS= read -r line; do
+              echo "::error title=Kotlin::${line//%/％}"
+            done
+            grep -E "^\* What went wrong:" -A 6 build.log | head -n 12 | while IFS= read -r line; do
+              echo "::error title=Gradle::${line//%/％}"
+            done
+            exit "$STATUS"
+          fi
 
       - name: Collect artifacts
         run: |
