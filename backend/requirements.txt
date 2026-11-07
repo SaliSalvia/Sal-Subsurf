@@ -1,0 +1,12 @@
+# SubsurfaceExplorer backend — runtime dependencies
+# (kept in sync with pyproject.toml; used by Docker builds and PaaS platforms
+#  such as Runflare that expect a plain requirements.txt + start command)
+fastapi>=0.115
+uvicorn[standard]>=0.30
+pydantic>=2.7
+shapely>=2.0
+requests>=2.32
+numpy>=1.26
+Pillow>=10.3
+tifffile>=2024.2.0
+scipy>=1.11

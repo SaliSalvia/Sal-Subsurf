@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">SubsurfaceExplorer</string>
+
+    <!-- Bottom navigation -->
+    <string name="tab_map">Map</string>
+    <string name="tab_results">Results</string>
+    <string name="tab_settings">Settings</string>
+
+    <!-- Map screen -->
+    <string name="map_title">Survey region</string>
+    <string name="action_undo">Undo</string>
+    <string name="action_clear">Clear</string>
+    <string name="action_analyze">Analyze</string>
+    <string name="vertices_format">Vertices: %1$d / 10</string>
+    <string name="area_format">Area: %1$s</string>
+    <string name="tap_to_add_vertex">Tap on the map to add survey vertices (3–10)</string>
+    <string name="need_three_vertices">Add at least 3 vertices first</string>
+    <string name="max_vertices">Maximum is 10 vertices</string>
+    <string name="analyzing">Analyzing region…</string>
+    <string name="offline_valid_bad">Local check: region is invalid</string>
+
+    <!-- Results screen -->
+    <string name="results_title">Analysis results</string>
+    <string name="results_empty">Sketch a region on the Map tab and press Analyze.</string>
+    <string name="validation_card">Region validation</string>
+    <string name="valid_region">Region is valid</string>
+    <string name="invalid_region">Region is invalid</string>
+    <string name="area_hectares_format">%1$s ha</string>
+    <string name="perimeter_format">%1$s m</string>
+    <string name="catalog_card">Sentinel-2 products (L2A)</string>
+    <string name="products_found">%1$d matching products</string>
+    <string name="total_matched_format">total in catalog: %1$d</string>
+    <string name="cloud_cover_format">Cloud cover: %1$s%%</string>
+    <string name="size_format">%1$s MB</string>
+    <string name="terrain_card">Terrain indicators (open DEM)</string>
+    <string name="compute_terrain">Compute terrain indicators</string>
+    <string name="computing">Computing…</string>
+    <string name="elevation_format">Elevation: %1$s–%2$s m</string>
+    <string name="slope_mean_format">Slope (mean): %1$s°</string>
+    <string name="slope_max_format">Slope (max): %1$s°</string>
+    <string name="roughness_format">Roughness (TRI): %1$s</string>
+    <string name="resolution_format">DEM resolution: ~%1$s m/px</string>
+    <string name="anomaly_score_format">Surface anomaly score: %1$s</string>
+    <string name="gradient_consistency_format">Gradient consistency: %1$s</string>
+    <string name="provenance_title">Data provenance</string>
+    <string name="caveats_title">Scientific caveats</string>
+    <string name="warnings_title">Warnings</string>
+
+    <!-- Settings screen -->
+    <string name="settings_title">Settings</string>
+    <string name="settings_api_url">Backend API base URL</string>
+    <string name="settings_api_url_hint">http://192.168.1.20:8000/</string>
+    <string name="settings_save">Save</string>
+    <string name="settings_test">Test connection</string>
+    <string name="settings_test_ok">Connected — backend v%1$s</string>
+    <string name="settings_test_fail">Connection failed</string>
+    <string name="settings_about">SubsurfaceExplorer collects surface observations (Sentinel-2 metadata, open DEM terrain indicators) with full provenance. It is not a subsurface scanner and never claims buried-target detections.</string>
+    <string name="url_invalid">Enter a valid URL ending with /</string>
+
+    <!-- Common -->
+    <string name="error_format">Error: %1$s</string>
+    <string name="ok">OK</string>
+    <string name="disclaimer">Surface indicators only — not evidence of buried targets.</string>
+</resources>

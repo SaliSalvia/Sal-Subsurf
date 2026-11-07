@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">ساب‌سرفیس‌اکسپلورر</string>
+
+    <!-- نوار پایین -->
+    <string name="tab_map">نقشه</string>
+    <string name="tab_results">نتایج</string>
+    <string name="tab_settings">تنظیمات</string>
+
+    <!-- صفحه نقشه -->
+    <string name="map_title">محدوده پیمایش</string>
+    <string name="action_undo">برگرداندن</string>
+    <string name="action_clear">پاک کردن</string>
+    <string name="action_analyze">تحلیل</string>
+    <string name="vertices_format">رأس‌ها: %1$d / ۱۰</string>
+    <string name="area_format">مساحت: %1$s</string>
+    <string name="tap_to_add_vertex">برای افزودن رأس (۳ تا ۱۰) روی نقشه بزنید</string>
+    <string name="need_three_vertices">ابتدا حداقل ۳ رأس اضافه کنید</string>
+    <string name="max_vertices">حداکثر ۱۰ رأس مجاز است</string>
+    <string name="analyzing">در حال تحلیل محدوده…</string>
+    <string name="offline_valid_bad">بررسی محلی: محدوده نامعتبر است</string>
+
+    <!-- صفحه نتایج -->
+    <string name="results_title">نتایج تحلیل</string>
+    <string name="results_empty">در زبانهٔ نقشه یک محدوده رسم کنید و «تحلیل» را بزنید.</string>
+    <string name="validation_card">اعتبارسنجی محدوده</string>
+    <string name="valid_region">محدوده معتبر است</string>
+    <string name="invalid_region">محدوده نامعتبر است</string>
+    <string name="area_hectares_format">%1$s هکتار</string>
+    <string name="perimeter_format">%1$s متر</string>
+    <string name="catalog_card">محصولات سنتینل-۲ (L2A)</string>
+    <string name="products_found">%1$d محصول منطبق</string>
+    <string name="total_matched_format">مجموع در کاتالوگ: %1$d</string>
+    <string name="cloud_cover_format">پوشش ابر: %1$s٪</string>
+    <string name="size_format">%1$s مگابایت</string>
+    <string name="terrain_card">شاخص‌های زمینی (DEM آزاد)</string>
+    <string name="compute_terrain">محاسبه شاخص‌های زمینی</string>
+    <string name="computing">در حال محاسبه…</string>
+    <string name="elevation_format">ارتفاع: %1$s تا %2$s متر</string>
+    <string name="slope_mean_format">شیب (میانگین): %1$s°</string>
+    <string name="slope_max_format">شیب (بیشینه): %1$s°</string>
+    <string name="roughness_format">زبری (TRI): %1$s</string>
+    <string name="resolution_format">وضوح DEM: حدود %1$s متر/پیکسل</string>
+    <string name="anomaly_score_format">نمره ناهنجاری سطح: %1$s</string>
+    <string name="gradient_consistency_format">انسجام جهت شیب: %1$s</string>
+    <string name="provenance_title">خاستگاه داده‌ها</string>
+    <string name="caveats_title">تذکرهای علمی</string>
+    <string name="warnings_title">هشدارها</string>
+
+    <!-- صفحه تنظیمات -->
+    <string name="settings_title">تنظیمات</string>
+    <string name="settings_api_url">آدرس پایه API سرور</string>
+    <string name="settings_api_url_hint">http://192.168.1.20:8000/</string>
+    <string name="settings_save">ذخیره</string>
+    <string name="settings_test">تست اتصال</string>
+    <string name="settings_test_ok">متصل شد — نسخه سرور %1$s</string>
+    <string name="settings_test_fail">اتصال برقرار نشد</string>
+    <string name="settings_about">ساب‌سرفیس‌اکسپلورر مشاهدات سطحی (فراداده سنتینل-۲ و شاخص‌های زمینی DEM آزاد) را همراه با خاستگاه کامل ثبت می‌کند. این برنامه اسکنر زیرسطحی نیست و هرگز ادعای تشخیص هدف دفن‌شده نمی‌کند.</string>
+    <string name="url_invalid">یک نشانی معتبر که با / تمام شود وارد کنید</string>
+
+    <!-- عمومی -->
+    <string name="error_format">خطا: %1$s</string>
+    <string name="ok">باشه</string>
+    <string name="disclaimer">فقط شاخص‌های سطحی — نه مدرکی برای اهداف دفن‌شده.</string>
+</resources>
