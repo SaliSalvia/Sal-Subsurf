@@ -38,8 +38,10 @@ jobs:
           yes | sdkmanager --licenses > /dev/null || true
           sdkmanager --install "platform-tools" "platforms;android-36" "build-tools;36.0.0"
 
-      - name: Fast resource checks (strings, locales, R.string references)
-        run: python3 scripts/check-android-resources.py
+      - name: Fast Kotlin + resource checks (seconds, before the Gradle build)
+        run: |
+          python3 scripts/check-kotlin-syntax.py
+          python3 scripts/check-android-resources.py
 
       - name: Set up Gradle (wrapper-driven, with dependency caching)
         uses: gradle/actions/setup-gradle@v4
