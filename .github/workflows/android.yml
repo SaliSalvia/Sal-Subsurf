@@ -72,8 +72,19 @@ jobs:
       - name: Collect artifacts
         run: |
           mkdir -p dist
+          # Fail loudly with context instead of a bare `cp` error.
+          if [ ! -f android/app/build/outputs/apk/debug/app-debug.apk ]; then
+            echo "::error title=Missing debug APK::assembleDebug produced no app-debug.apk"
+            find android/app/build/outputs -name '*.apk' || true
+            exit 1
+          fi
           cp android/app/build/outputs/apk/debug/app-debug.apk dist/Sal-Subsurf-debug.apk
-          RELEASE_APK="$(ls android/app/build/outputs/apk/release/*.apk | head -n1)"
+          RELEASE_APK="$(find android/app/build/outputs/apk/release -name '*.apk' | head -n1 || true)"
+          if [ -z "$RELEASE_APK" ]; then
+            echo "::error title=Missing release APK::assembleRelease produced no release APK"
+            find android/app/build/outputs -name '*.apk' || true
+            exit 1
+          fi
           if echo "$RELEASE_APK" | grep -qi "unsigned"; then
             cp "$RELEASE_APK" dist/Sal-Subsurf-release-unsigned.apk
             echo "Release APK is UNSIGNED (no signing secrets found)."
