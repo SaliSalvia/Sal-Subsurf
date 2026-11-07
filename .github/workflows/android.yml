@@ -50,20 +50,23 @@ jobs:
           KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
         run: |
           chmod +x gradlew
-          set -o pipefail
-          # Kotlin/AGP diagnostics are echoed as ::error:: workflow annotations as well: they show
-          # up in the job summary and the API, which makes failures readable without the log blob.
-          ./gradlew --no-daemon --stacktrace :app:assembleDebug :app:assembleRelease :app:testDebugUnitTest \
-            2>&1 | tee build.log | grep -E "^(e: |w: .*warning|FAILURE:|> )" || true
+          # Important: capture Gradle's own exit code out of the pipeline. (An `|| true` after the
+          # pipeline would reset PIPESTATUS, which previously hid real compiler failures.)
+          set +e
+          ./gradlew --no-daemon --stacktrace :app:assembleDebug :app:assembleRelease :app:testDebugUnitTest 2>&1 | tee build.log
           STATUS=${PIPESTATUS[0]}
+          set -e
+
+          # Diagnostics are mirrored as ::error:: annotations: they stay readable in the run
+          # summary and via the API even when log blobs are unavailable.
           if [ "$STATUS" -ne 0 ]; then
-            echo "::group::Gradle failure context"
-            tail -n 120 build.log
+            echo "::group::Compiler diagnostics"
+            grep -E "^(e: |w: .*warning)" build.log | head -n 80 || true
             echo "::endgroup::"
             grep -E "^e: " build.log | head -n 30 | while IFS= read -r line; do
               echo "::error title=Kotlin::${line//%/％}"
             done
-            grep -E "^\* What went wrong:" -A 6 build.log | head -n 12 | while IFS= read -r line; do
+            grep -E "^\* What went wrong:" -A 8 build.log | head -n 20 | while IFS= read -r line; do
               echo "::error title=Gradle::${line//%/％}"
             done
             exit "$STATUS"
