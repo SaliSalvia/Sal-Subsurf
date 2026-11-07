@@ -41,7 +41,6 @@
     <string name="metric_area">مساحت</string>
     <string name="metric_perimeter">محیط</string>
     <string name="metric_vertices">رأس‌ها</string>
-    <string name="sheet_title_empty">یک پیمایش تازه را شروع کنید</string>
 
     <!-- صفحه نتایج -->
     <string name="results_title">نتایج تحلیل</string>
