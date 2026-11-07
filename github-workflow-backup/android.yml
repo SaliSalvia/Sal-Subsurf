@@ -1,0 +1,80 @@
+name: Android APK
+
+on:
+  push:
+    branches: ["**"]
+    tags: ["v*"]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: android-apk-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  apk:
+    name: Build APK (debug + release)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install SDK packages
+        run: |
+          yes | sdkmanager --licenses > /dev/null || true
+          sdkmanager "platform-tools" "platforms;android-36" "build-tools;36.0.0" > /dev/null
+
+      - name: Set up Gradle (wrapper-driven, with dependency caching)
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Build APKs, run unit tests (signed when secrets are present)
+        working-directory: android
+        env:
+          KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+        run: |
+          chmod +x gradlew
+          ./gradlew --no-daemon --stacktrace :app:assembleDebug :app:assembleRelease :app:testDebugUnitTest
+
+      - name: Collect artifacts
+        run: |
+          mkdir -p dist
+          cp android/app/build/outputs/apk/debug/app-debug.apk dist/Sal-Subsurf-debug.apk
+          RELEASE_APK="$(ls android/app/build/outputs/apk/release/*.apk | head -n1)"
+          if echo "$RELEASE_APK" | grep -qi "unsigned"; then
+            cp "$RELEASE_APK" dist/Sal-Subsurf-release-unsigned.apk
+            echo "Release APK is UNSIGNED (no signing secrets found)."
+          else
+            cp "$RELEASE_APK" dist/Sal-Subsurf-release-signed.apk
+            echo "Release APK is SIGNED with the repository keystore secret."
+          fi
+          ls -la dist
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: Sal-Subsurf-APKs
+          path: dist/*.apk
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Attach APKs to GitHub Release (on v* tags)
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/*.apk
+          generate_release_notes: true
