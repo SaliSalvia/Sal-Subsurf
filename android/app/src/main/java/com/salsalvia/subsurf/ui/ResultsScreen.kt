@@ -3,6 +3,7 @@ package com.salsalvia.subsurf.ui
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -62,8 +63,11 @@ fun ResultsScreen(
     state: UiState,
     onGoToMap: () -> Unit = {},
     contentPadding: PaddingValues = PaddingValues(),
+    onReportCopied: () -> Unit = {},
 ) {
     val empty = state.validation == null && state.catalog == null && state.terrain == null
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val clipboard = androidx.compose.ui.platform.LocalClipboardManager.current
 
     Column(
         Modifier
@@ -73,6 +77,29 @@ fun ResultsScreen(
         ScreenTitle(
             title = stringResource(R.string.results_title),
             subtitle = if (empty) null else stringResource(R.string.results_subtitle),
+            trailing = if (empty) {
+                null
+            } else {
+                {
+                    Row(horizontalArrangement = Arrangement.spacedBy(Dims.xs)) {
+                        RoundIconAction(
+                            icon = SubsurfIcons.Share,
+                            label = stringResource(R.string.action_share_report),
+                            onClick = { ReportExporter.share(context, state) },
+                        )
+                        RoundIconAction(
+                            icon = SubsurfIcons.Copy,
+                            label = stringResource(R.string.action_copy_report),
+                            onClick = {
+                                clipboard.setText(androidx.compose.ui.text.AnnotatedString(
+                                    ReportExporter.toPlainText(context, state),
+                                ))
+                                onReportCopied()
+                            },
+                        )
+                    }
+                }
+            },
         )
 
         if (empty) {
@@ -151,6 +178,30 @@ fun ResultsScreen(
             }
             item { DisclaimerNote() }
         }
+    }
+}
+
+/** Compact round icon button used in screen titles. */
+@Composable
+private fun RoundIconAction(
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    label: String,
+    onClick: () -> Unit,
+) {
+    Box(
+        Modifier
+            .size(40.dp)
+            .clip(CircleShape)
+            .background(MaterialTheme.colorScheme.surfaceContainerHigh)
+            .clickable(onClick = onClick),
+        contentAlignment = Alignment.Center,
+    ) {
+        Icon(
+            icon,
+            contentDescription = label,
+            tint = MaterialTheme.colorScheme.onSurface,
+            modifier = Modifier.size(19.dp),
+        )
     }
 }
 
@@ -371,8 +422,18 @@ private fun TerrainCard(vm: AppViewModel, state: UiState) {
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
+            // Terrain is the step most likely to fail (large polygons can exceed the DEM
+            // window). Say why, and make the button below an explicit retry.
+            if (state.runError != null && !state.terrainBusy) {
+                Text(
+                    text = state.runError,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.error,
+                    modifier = Modifier.padding(top = Dims.xs),
+                )
+            }
             Button(
-                onClick = { vm.computeTerrain() },
+                onClick = { vm.retryTerrain() },
                 enabled = !state.terrainBusy,
                 modifier = Modifier
                     .fillMaxWidth()
@@ -394,7 +455,15 @@ private fun TerrainCard(vm: AppViewModel, state: UiState) {
                     Icon(SubsurfIcons.Terrain, contentDescription = null, modifier = Modifier.size(17.dp))
                     Spacer(Modifier.width(8.dp))
                 }
-                Text(stringResource(if (state.terrainBusy) R.string.computing else R.string.compute_terrain))
+                Text(
+                    stringResource(
+                        when {
+                            state.terrainBusy -> R.string.computing
+                            state.runError != null -> R.string.action_retry
+                            else -> R.string.compute_terrain
+                        },
+                    ),
+                )
             }
             return@SubsurfCard
         }

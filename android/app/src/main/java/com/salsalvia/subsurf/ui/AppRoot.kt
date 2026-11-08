@@ -1,5 +1,6 @@
 package com.salsalvia.subsurf.ui
 
+import androidx.activity.compose.BackHandler
 import androidx.annotation.StringRes
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.core.animateFloatAsState
@@ -24,6 +25,7 @@ import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
@@ -34,6 +36,7 @@ import androidx.compose.material3.Snackbar
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -67,22 +70,75 @@ fun AppRoot(vm: AppViewModel) {
     var tabIndex by rememberSaveable { mutableIntStateOf(0) }
     val tabs = Tab.entries
     val snackbar = remember { SnackbarHostState() }
+    val context = androidx.compose.ui.platform.LocalContext.current
+    var copiedNotice by remember { mutableStateOf(false) }
 
     // "Collect everything" orchestration: once the satellite catalog for the locked area has
     // arrived, the terrain indicators are fetched automatically so a single run produces the
     // complete report. This is pure UI choreography — the ViewModel/backend calls are unchanged.
-    var terrainRequested by remember { mutableStateOf(false) }
-    LaunchedEffect(state.catalog, state.terrain, state.terrainBusy) {
-        if (!terrainRequested && state.catalog != null && state.terrain == null && !state.terrainBusy) {
-            // Only auto-run when a valid sketch exists (the terrain endpoint needs a polygon).
-            if (state.vertices.size >= 3) {
-                terrainRequested = true
-                vm.computeTerrain()
-            }
+    //
+    // The guard is keyed on the sketch *and* the run counter rather than a one-shot boolean: the
+    // old flag stayed set after a failure, so retrying the same area never refetched the terrain.
+    // Editing the polygon (or pressing retry) produces a new key and re-arms the auto-fetch.
+    val runKey = remember(state.vertices, state.runId) {
+        state.runId.toString() + "@" + state.vertices.joinToString("|") { "${it.lat},${it.lon}" }
+    }
+    var terrainAttemptedFor by remember { mutableStateOf<String?>(null) }
+    LaunchedEffect(state.catalog, state.terrain, state.terrainBusy, runKey, state.runError) {
+        val ready = state.catalog != null &&
+            state.terrain == null &&
+            !state.terrainBusy &&
+            // A failed run must not silently keep retrying; the user retries explicitly.
+            state.runError == null &&
+            state.vertices.size >= 3 &&
+            terrainAttemptedFor != runKey
+        if (ready) {
+            terrainAttemptedFor = runKey
+            vm.computeTerrain()
         }
     }
-    LaunchedEffect(state.validation) {
-        if (state.validation == null) terrainRequested = false
+
+    // Android back: leave a sub-tab, then leave trace mode, and only then ask before exiting.
+    var confirmExit by remember { mutableStateOf(false) }
+    var mapTracing by remember { mutableStateOf(false) }
+    var exitTraceSignal by remember { mutableIntStateOf(0) }
+    BackHandler(enabled = tabIndex != 0) {
+        tabIndex = 0
+    }
+    BackHandler(enabled = tabIndex == 0 && mapTracing) {
+        exitTraceSignal++
+    }
+    BackHandler(enabled = tabIndex == 0 && !mapTracing && !confirmExit) {
+        confirmExit = true
+    }
+
+    // Confirmation for "copy summary" (uses the same snackbar channel as errors).
+    LaunchedEffect(copiedNotice) {
+        if (copiedNotice) {
+            snackbar.showSnackbar(context.getString(R.string.report_copied))
+            copiedNotice = false
+        }
+    }
+
+    if (confirmExit) {
+        AlertDialog(
+            onDismissRequest = { confirmExit = false },
+            title = { Text(stringResource(R.string.exit_title)) },
+            text = { Text(stringResource(R.string.exit_body)) },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        confirmExit = false
+                        (context as? android.app.Activity)?.finish()
+                    },
+                ) { Text(stringResource(R.string.action_exit)) }
+            },
+            dismissButton = {
+                TextButton(onClick = { confirmExit = false }) {
+                    Text(stringResource(R.string.action_stay))
+                }
+            },
+        )
     }
 
     LaunchedEffect(state.message) {
@@ -133,12 +189,16 @@ fun AppRoot(vm: AppViewModel) {
                         state = state,
                         onAnalyzed = { tabIndex = Tab.RESULTS.ordinal },
                         contentPadding = padding,
+                        onOpenSettings = { tabIndex = Tab.SETTINGS.ordinal },
+                        exitTraceSignal = exitTraceSignal,
+                        onTracingChanged = { mapTracing = it },
                     )
                     Tab.RESULTS -> ResultsScreen(
                         vm = vm,
                         state = state,
                         onGoToMap = { tabIndex = Tab.MAP.ordinal },
                         contentPadding = padding,
+                        onReportCopied = { copiedNotice = true },
                     )
                     Tab.SETTINGS -> SettingsScreen(vm = vm, state = state, contentPadding = padding)
                 }

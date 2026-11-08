@@ -31,7 +31,24 @@ data class UiState(
     val terrain: TerrainResponse? = null,
     /** Purely presentational: how the user wants light/dark resolved. */
     val themeMode: ThemeMode = ThemeMode.DARK,
-)
+    /** Human-readable failure of the last collection step, if any (drives the retry UI). */
+    val runError: String? = null,
+    /** Area text captured when the run started, so the report can echo it. */
+    val runAreaLabel: String? = null,
+    /** Increments on every collection run, so the UI can tell "same area, run again" apart. */
+    val runId: Int = 0,
+    /**
+     * Resolved light/dark flag. Written by the activity once per composition so that screens
+     * (and the map basemap) follow the user's theme choice, not just the system setting.
+     */
+    val isDark: Boolean = true,
+    /** Result of the startup reachability probe (`null` = still checking / not run yet). */
+    val backendOnline: Boolean? = null,
+) {
+    /** True while either network stage of a run is in flight. */
+    val isCollecting: Boolean get() = busy || terrainBusy
+}
+
 
 class AppViewModel(app: Application) : AndroidViewModel(app) {
 
@@ -46,6 +63,35 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     private fun res(id: Int, vararg args: Any?): String = ctx().getString(id, *args)
 
     fun consumeMessage() = _state.update { it.copy(message = null) }
+
+    /**
+     * Probes the configured backend once at startup so the UI can explain itself when nothing is
+     * reachable instead of failing later on the first collection run.
+     */
+    fun probeBackend() {
+        viewModelScope.launch {
+            try {
+                ApiClient.api(_state.value.apiBaseUrl).health()
+                _state.update { it.copy(backendOnline = true) }
+            } catch (e: Exception) {
+                _state.update { it.copy(backendOnline = false) }
+            }
+        }
+    }
+
+    /** Stores the resolved appearance so the map can pick its basemap. */
+    fun applyResolvedTheme(dark: Boolean) {
+        if (_state.value.isDark != dark) _state.update { it.copy(isDark = dark) }
+    }
+
+    /** Clears a failed run so the retry button can be pressed again. */
+    fun dismissError() = _state.update { it.copy(runError = null) }
+
+    /** Retries just the terrain step after the rest of the run succeeded. */
+    fun retryTerrain() {
+        dismissError()
+        computeTerrain()
+    }
 
     fun addVertex(lat: Double, lon: Double) {
         _state.update { s ->
@@ -84,7 +130,10 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     fun saveBaseUrl(url: String) {
         val normalized = if (url.endsWith("/")) url else "$url/"
         settings.apiBaseUrl = normalized
-        _state.update { it.copy(apiBaseUrl = normalized) }
+        // Re-probe immediately: changing the address should visibly refresh the online pill
+        // instead of leaving a stale "Offline" badge next to the new URL.
+        _state.update { it.copy(apiBaseUrl = normalized, backendOnline = null) }
+        probeBackend()
     }
 
     private fun polygonPayload(): List<List<Double>> =
@@ -97,13 +146,26 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
             return
         }
         viewModelScope.launch {
-            _state.update { it.copy(busy = true, message = null) }
+            _state.update {
+                it.copy(
+                    busy = true,
+                    message = null,
+                    runError = null,
+                    terrain = null,
+                    runAreaLabel = formatArea(_state.value.vertices),
+                    runId = it.runId + 1,
+                )
+            }
             val payload = polygonPayload()
 
             // Offline guard first — no network request for a broken sketch.
             if (!GeoMath.localCheck(payload)) {
                 _state.update {
-                    it.copy(busy = false, message = res(R.string.offline_valid_bad))
+                    it.copy(
+                        busy = false,
+                        runError = res(R.string.offline_valid_bad),
+                        message = res(R.string.offline_valid_bad),
+                    )
                 }
                 return@launch
             }
@@ -111,7 +173,14 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
                 val api = ApiClient.api(_state.value.apiBaseUrl)
                 val validation = api.validate(RegionRequest(polygon = payload))
                 if (!validation.valid) {
-                    _state.update { it.copy(busy = false, validation = validation) }
+                    _state.update {
+                        it.copy(
+                            busy = false,
+                            validation = validation,
+                            runError = validation.issues.firstOrNull()
+                                ?: res(R.string.invalid_region),
+                        )
+                    }
                     return@launch
                 }
                 val today = LocalDate.now()
@@ -128,8 +197,13 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
                     it.copy(busy = false, validation = validation, catalog = catalog)
                 }
             } catch (e: Exception) {
+                val detail = userMessage(e)
                 _state.update {
-                    it.copy(busy = false, message = res(R.string.error_format, userMessage(e)))
+                    it.copy(
+                        busy = false,
+                        runError = detail,
+                        message = res(R.string.error_format, detail),
+                    )
                 }
             }
         }
@@ -145,10 +219,12 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
                     .terrainIndicators(RegionRequest(polygon = payload))
                 _state.update { it.copy(terrainBusy = false, terrain = terrain) }
             } catch (e: Exception) {
+                val detail = userMessage(e)
                 _state.update {
                     it.copy(
                         terrainBusy = false,
-                        message = res(R.string.error_format, userMessage(e)),
+                        runError = detail,
+                        message = res(R.string.error_format, detail),
                     )
                 }
             }
@@ -175,6 +251,15 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         }
     }
 
-    private fun userMessage(e: Exception): String =
-        e.message ?: e.javaClass.simpleName
+    /**
+     * Turns transport-level exceptions into something a user can act on, instead of raw
+     * "Failed to connect to /10.0.2.2:8000" strings.
+     */
+    private fun userMessage(e: Exception): String = when (e) {
+        is java.net.UnknownHostException -> res(R.string.error_no_host, e.message ?: "")
+        is java.net.SocketTimeoutException -> res(R.string.error_timeout)
+        is java.net.ConnectException -> res(R.string.error_unreachable)
+        is java.io.IOException -> e.message ?: res(R.string.error_network)
+        else -> e.message ?: e.javaClass.simpleName
+    }
 }

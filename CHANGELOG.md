@@ -4,9 +4,57 @@ All notable changes to this project are documented in this file.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [1.4.1] - 2026-11-07
 
-_Nothing yet._
+Operability release: everything between "it builds" and "someone can actually use it". Still
+presentation + client-side only — no backend, API-contract or geo-maths change.
+
+### Fixed
+- **Lock did not lock.** While tracing, pan/zoom/double-tap gestures stayed active, so a drag
+  could move the map mid-trace and taps landed in the wrong place. Gestures are now disabled while
+  the area is locked (and re-applied after a basemap swap).
+- **The map ignored the app theme.** `MapScreen` read `isSystemInDarkTheme()` directly, so a user
+  who chose Dark on a light-mode phone still got the pale `positron` basemap. The resolved
+  appearance is now published into `UiState` (`isDark`) by the activity.
+- **Auto-terrain never retried.** The "fetch terrain after the catalog arrives" guard was a
+  one-shot boolean: a failed call disabled the automatic fetch for the rest of the session, even
+  after pressing retry on the same area. It is now keyed on the sketch vertices + a per-run
+  `runId`, and refuses to auto-fire while a run is in an error state.
+- **The collection overlay could spin forever.** It now hides as soon as a run fails, leaving the
+  map visible with the retry affordance.
+- **Results appeared on failed runs.** Navigation to Results now requires valid server validation
+  *and* a catalog response.
+- **`metresPerPixel()`** returned a no-op expression (`/512*512`); it now uses the correct
+  512-px-tile Web Mercator relation that the new scale bar depends on.
+- **Basemap attribution was disabled.** MapLibre's attribution control is back on (OpenStreetMap /
+  OpenFreeMap attribution is a licence obligation, not decoration).
+
+### Added
+- **In-place failure handling**: a failed collection shows a banner on the map with the actual
+  cause (unknown host / timeout / connection refused / HTTP detail) and **Try again** / **Dismiss**;
+  the primary button becomes a retry. Settings and the terrain card report the same reason.
+- **Startup backend probe** with an offline notice on the map ("Backend not reachable", shortcut to
+  Settings) and a live **Online / Offline / Checking…** pill in Settings.
+- **Map scale bar** (Google-Maps style) that snaps to 1/2/5 × 10ⁿ and refreshes when the camera
+  settles. New unit tests pin the snapping, the "never understates" property and the formatting.
+- **Share / copy the run summary** as plain text from Results (always including the scientific
+  caveat), with a confirmation snackbar.
+- **Android back navigation**: back from Results/Settings returns to the map; back on the map asks
+  before leaving.
+- **R8 (minify + resource shrinking) enabled for release** with the rules MapLibre, Retrofit/OkHttp,
+  kotlinx-serialization and ViewModels actually need — smaller APK, faster start.
+- **Scoped cleartext policy** (`res/xml/network_security_config.xml`) replacing the blanket
+  `android:usesCleartextTraffic="true"`: HTTPS everywhere, cleartext only for local/emulator hosts.
+- 22 new strings in English and فارسی (139 total, parity checked in CI).
+- `TERRAIN` retry is its own action, and editing the API address re-probes immediately so the
+  status pill can never show a stale result next to a new URL.
+
+### Changed
+- Transport errors are translated into actionable sentences instead of raw exception text.
+
+### Documentation
+- README: end-to-end "use the app" walkthrough (lock → trace → collect → share), the backend
+  address rules, and what each failure banner means.
 
 ## [1.4.0] - 2026-11-08
 

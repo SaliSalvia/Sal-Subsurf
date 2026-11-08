@@ -47,6 +47,9 @@ defensible surface indicators.
   elevation statistics, slope, roughness (TRI), gradient-orientation consistency, and a documented,
   weighted **surface terrain-anomaly score** with full provenance and caveats.
 * Android-to-API requests with loading, success, and error states; local offline validation fallback.
+* **Operational UX (v1.4.1)** — a lockable camera while tracing, a Google-Maps-style scale bar, a
+  startup backend probe with an offline notice, actionable failure banners with retry, and
+  share/copy of the run summary. Release builds are R8-shrunk and use a scoped cleartext policy.
 * Python unit tests and CI workflows.
 * Scientific guardrails and a staged implementation roadmap.
 
@@ -119,6 +122,24 @@ The Gradle build uses Kotlin DSL and a version catalog. The **complete Gradle wr
 (`gradlew` + JAR, Gradle 8.14.6), so both CI and local builds (`./gradlew :app:assembleDebug`)
 work without installing anything — the wrapper downloads Gradle itself.
 
+### Use the app (the 60-second version)
+
+1. **Find your area.** The app opens on the globe — drag to pan, pinch to zoom, use
+   *back to globe* / *fit* on the right edge. A scale bar tells you how big the view is.
+2. **Lock.** Press **Lock**. The camera freezes (gestures are off) so a tap can only ever place a
+   corner of your boundary.
+3. **Trace.** Tap 3–10 corners. The boundary is drawn as a **red-and-black dashed** ring over a
+   faint gold fill, and live area/perimeter update as you go. *Undo* removes the last corner.
+4. **Collect.** Press **Collect data**. One run validates the polygon with the server, searches the
+   last 90 days of Sentinel-2 catalog (< 30 % cloud), and then fetches the terrain indicators
+   automatically. A staged overlay shows which step is running.
+5. **Read the report.** You land on **Results** with the validation, the catalog and the terrain
+   metrics (elevation, slope, roughness, surface-anomaly score). **Share** or **Copy** exports the
+   run as plain text — the scientific caveat is always included.
+
+If anything fails, the banner tells you *why* (server not found, timeout, connection refused) and
+offers **Try again** — you never have to re-draw the polygon.
+
 ### Connect the Android app to the backend
 
 Start the API on your development computer
@@ -132,7 +153,22 @@ gradle -PAPI_BASE_URL=http://192.168.1.20:8000/ :app:assembleDebug
 ```
 
 The runtime value in Settings always wins over the build-time default, so you never need to rebuild
-just to change the endpoint. Practical deployment options (LAN, ADB reverse, Termux on the same
+just to change the endpoint. Settings shows a live **Online / Offline / Checking…** pill, and the
+map shows a dismissible notice when the backend is unreachable, so a wrong address is obvious
+immediately rather than at the first collection run.
+
+**What the failure messages mean**
+
+| Message | Cause | Fix |
+| --- | --- | --- |
+| `Server not found` | DNS/host typo, or the app is on a different network | Fix the address in Settings |
+| `Cannot reach the server` | Nothing is listening on that host/port | Start the backend; check `--host 0.0.0.0` |
+| `The server took too long` | Terrain/DEM window too large, or a slow link | Retry, or lock a smaller area |
+| `Network problem` | No connectivity / captive portal | Fix the connection |
+
+The app allows cleartext HTTP only for local development hosts (`10.0.2.2`, `localhost`,
+`127.0.0.1`) and always uses HTTPS for anything else — see
+`android/app/src/main/res/xml/network_security_config.xml`. Practical deployment options (LAN, ADB reverse, Termux on the same
 phone, **Runflare**, VPS + HTTPS) are described in [docs/OPERATIONS.md](docs/OPERATIONS.md),
 [docs/DEPLOY-RUNFLARE-FA.md](docs/DEPLOY-RUNFLARE-FA.md) (راهنمای کامل فارسی رانفلر) and
 [docs/QUICKSTART-FA.md](docs/QUICKSTART-FA.md) (فارسی).

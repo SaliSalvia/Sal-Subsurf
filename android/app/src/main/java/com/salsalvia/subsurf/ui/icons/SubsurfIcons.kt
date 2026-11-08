@@ -380,6 +380,48 @@ object SubsurfIcons {
         line("Minus", "M5,12 L19,12")
     }
 
+    /** Share the run summary. */
+    val Share: ImageVector by lazy {
+        ImageVector.Builder(
+            name = "Share",
+            defaultWidth = 24.dp,
+            defaultHeight = 24.dp,
+            viewportWidth = 24f,
+            viewportHeight = 24f,
+        ).apply {
+            addPath(
+                pathData = addPathNodes(
+                    "M12,3.4 L12,14.6 M8.4,7 L12,3.4 L15.6,7 " +
+                        "M6,12 L4.4,12 L4.4,20.4 L19.6,20.4 L19.6,12 L18,12",
+                ),
+                stroke = SolidColor(Color.Black),
+                strokeLineWidth = 1.8f,
+                strokeLineCap = StrokeCap.Round,
+                strokeLineJoin = StrokeJoin.Round,
+            )
+        }.build()
+    }
+
+    /** Copy the run summary to the clipboard. */
+    val Copy: ImageVector by lazy {
+        line(
+            "Copy",
+            "M9,3.6 L18.4,3.6 L18.4,15.4",
+            "M6,7.4 L15,7.4 L15,20.4 L6,20.4 Z",
+        )
+    }
+
+    /** Warning used by the offline banner. */
+    val Offline: ImageVector by lazy {
+        line(
+            "Offline",
+            "M3,3 L21,21",
+            "M7.2,10.6 a7.6,7.6 0 0 1 4,-2.1",
+            "M16.8,10.6 a7.6,7.6 0 0 1 3.4,2.6",
+            "M10.6,15.4 a3.2,3.2 0 0 1 3.2,0.6",
+        )
+    }
+
     /** Chevron used in list rows. */
     val ChevronRight: ImageVector by lazy {
         line("ChevronRight", "M9.4,5.4 L16,12 L9.4,18.6")

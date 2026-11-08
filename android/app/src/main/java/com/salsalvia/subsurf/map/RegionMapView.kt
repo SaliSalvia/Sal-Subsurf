@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.CircularProgressIndicator
@@ -118,6 +119,7 @@ class RegionMapController {
     private var lastPushed: List<Vertex>? = null
     private var darkStyle: Boolean? = null
     private var viewInset: IntArray = intArrayOf(0, 0, 0, 0)
+    private var locked = false
 
     fun onMapReady(map: MapLibreMap, dark: Boolean) {
         this.map = map
@@ -126,7 +128,8 @@ class RegionMapController {
             CameraUpdateFactory.newLatLngZoom(LatLng(DEFAULT_LAT, DEFAULT_LON), GLOBE_ZOOM),
         )
         map.uiSettings.apply {
-            isAttributionEnabled = false
+            // Kept ON: the basemap licence (OpenStreetMap / OpenFreeMap) requires attribution.
+            isAttributionEnabled = true
             isLogoEnabled = false
             isCompassEnabled = false
             isRotateGesturesEnabled = false
@@ -139,7 +142,24 @@ class RegionMapController {
             },
         )
         map.addOnCameraMoveStartedListener { onCameraMoved?.invoke(true) }
+        map.addOnCameraIdleListener { onCameraMoved?.invoke(false) }
         loadStyle(dark)
+    }
+
+    /**
+     * Locks the camera. While locked, pan/zoom gestures are disabled so a tap can only ever place
+     * a boundary vertex — this is what makes "lock the area, then trace it" reliable on a phone
+     * where a fat-finger drag would otherwise move the map mid-trace.
+     */
+    fun setLocked(locked: Boolean) {
+        this.locked = locked
+        map?.uiSettings?.apply {
+            isScrollGesturesEnabled = !locked
+            isZoomGesturesEnabled = !locked
+            isDoubleTapGesturesEnabled = !locked
+            isRotateGesturesEnabled = false
+            isTiltGesturesEnabled = false
+        }
     }
 
     /** Swaps the basemap when the theme changes, replaying the sketch afterwards. */
@@ -160,6 +180,7 @@ class RegionMapController {
                 override fun onStyleLoaded(style: Style) {
                     installLayers(style)
                     applyInset()
+                    setLocked(locked)
                 }
             },
         )
@@ -298,6 +319,7 @@ class RegionMapController {
     /** Frames the whole sketch with a comfortable margin. */
     fun fitTo(vertices: List<Vertex>) {
         val current = map ?: return
+        if (locked) return
         if (vertices.isEmpty()) return
         if (vertices.size == 1) {
             current.animateCamera(
@@ -343,6 +365,20 @@ class RegionMapController {
 
     /** Current zoom, used by the UI to decide how much map context to show. */
     fun currentZoom(): Double = map?.cameraPosition?.zoom ?: GLOBE_ZOOM
+
+    /**
+     * Ground resolution at the camera target, in metres per screen pixel.
+     *
+     * Standard Web Mercator relation for 512px tiles (MapLibre's tile size):
+     * `156543.03392 * cos(lat) / 2^zoom` is the resolution for a *256px* tile world, and 512px
+     * tiles halve it. Good enough for a scale bar; the platform does not need survey accuracy here.
+     */
+    fun metresPerPixel(): Double? {
+        val camera = map?.cameraPosition ?: return null
+        val latRad = Math.toRadians(camera.target?.latitude ?: 0.0)
+        val equatorMetresPerPixel = 156543.03392 / Math.pow(2.0, camera.zoom)
+        return equatorMetresPerPixel * Math.cos(latRad) / 2.0
+    }
 }
 
 /**
@@ -475,4 +511,66 @@ fun MapLoadingOverlay(visible: Boolean, modifier: Modifier = Modifier) {
             }
         }
     }
+}
+
+/**
+ * Google-Maps-style scale bar. Driven by [RegionMapController.metresPerPixel] on each camera idle
+ * event; it snaps to a "nice" round distance so the label never reads like a spreadsheet.
+ */
+@Composable
+fun MapScaleBar(
+    metresPerPixel: Double?,
+    modifier: Modifier = Modifier,
+) {
+    val mpp = metresPerPixel ?: return
+    if (mpp <= 0.0) return
+
+    // Target ~92dp wide bar, snapped to 1/2/5 x 10^n in metres or kilometres.
+    val targetPx = with(androidx.compose.ui.platform.LocalDensity.current) { 92.dp.toPx() }
+    val rawMetres = mpp * targetPx
+    val niceMetres = niceDistance(rawMetres)
+    val barWidthDp = with(androidx.compose.ui.platform.LocalDensity.current) {
+        (niceMetres / mpp).toFloat().toDp()
+    }
+
+    Row(
+        modifier
+            .clip(androidx.compose.foundation.shape.RoundedCornerShape(8.dp))
+            .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.88f))
+            .padding(horizontal = 8.dp, vertical = 4.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(6.dp),
+    ) {
+        Box(
+            Modifier
+                .width(barWidthDp.coerceIn(28.dp, 140.dp))
+                .height(3.dp)
+                .background(MaterialTheme.colorScheme.onSurface),
+        )
+        Text(
+            formatDistance(niceMetres),
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurface,
+        )
+    }
+}
+
+/** Smallest "nice" distance (1/2/5 x 10^n) that is >= the requested value. */
+internal fun niceDistance(metres: Double): Double {
+    if (metres <= 0.0 || !metres.isFinite()) return 1.0
+    val magnitude = Math.pow(10.0, Math.floor(Math.log10(metres)))
+    val mantissa = metres / magnitude
+    val nice = when {
+        mantissa <= 1.0 -> 1.0
+        mantissa <= 2.0 -> 2.0
+        mantissa <= 5.0 -> 5.0
+        else -> 10.0
+    }
+    return nice * magnitude
+}
+
+internal fun formatDistance(metres: Double): String = when {
+    metres >= 1000.0 -> String.format(java.util.Locale.US, "%.0f km", metres / 1000.0)
+    metres >= 1.0 -> String.format(java.util.Locale.US, "%.0f m", metres)
+    else -> String.format(java.util.Locale.US, "%.0f cm", metres * 100.0)
 }

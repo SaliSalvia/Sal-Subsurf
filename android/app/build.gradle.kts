@@ -31,8 +31,8 @@ android {
         applicationId = "com.salsalvia.subsurf"
         minSdk = 26
         targetSdk = 36
-        versionCode = 5
-        versionName = "1.4.0"
+        versionCode = 6
+        versionName = "1.4.1"
         buildConfigField("String", "API_BASE_URL", "\"$apiBaseUrl\"")
     }
 
@@ -50,7 +50,10 @@ android {
 
     buildTypes {
         release {
-            isMinifyEnabled = false
+            // Shrinking + resource stripping: the release APK is several MB smaller and starts
+            // faster. Rules for MapLibre and kotlinx-serialization live in proguard-rules.pro.
+            isMinifyEnabled = true
+            isShrinkResources = true
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
             if (hasCiSigning) {
                 signingConfig = signingConfigs.getByName("ci")

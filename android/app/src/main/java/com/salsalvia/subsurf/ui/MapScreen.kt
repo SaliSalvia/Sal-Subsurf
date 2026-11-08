@@ -39,6 +39,7 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -64,6 +65,7 @@ import com.salsalvia.subsurf.R
 import com.salsalvia.subsurf.UiState
 import com.salsalvia.subsurf.geo.GeoMath
 import com.salsalvia.subsurf.map.MapLoadingOverlay
+import com.salsalvia.subsurf.map.MapScaleBar
 import com.salsalvia.subsurf.map.MapZoomControls
 import com.salsalvia.subsurf.map.RegionMapController
 import com.salsalvia.subsurf.map.RegionMapView
@@ -91,9 +93,13 @@ fun MapScreen(
     state: UiState,
     onAnalyzed: () -> Unit,
     contentPadding: PaddingValues = PaddingValues(),
+    onOpenSettings: () -> Unit = {},
+    exitTraceSignal: Int = 0,
+    onTracingChanged: (Boolean) -> Unit = {},
 ) {
     val haptics = LocalHapticFeedback.current
-    val dark = androidx.compose.foundation.isSystemInDarkTheme()
+    // Follow the user theme choice (resolved by the activity), not just the system setting.
+    val dark = state.isDark
     val statusBars = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
 
     var mapReady by remember { mutableStateOf(false) }
@@ -102,6 +108,8 @@ fun MapScreen(
     var mode by remember { mutableStateOf(MapMode.EXPLORE) }
     var cameraMoved by remember { mutableStateOf(false) }
     var pinned by remember { mutableStateOf(false) }
+    var metresPerPixel by remember { mutableStateOf<Double?>(null) }
+    var offlineDismissed by remember { mutableStateOf(false) }
 
     val tracing = mode == MapMode.TRACE
     val vertexCount = state.vertices.size
@@ -117,6 +125,18 @@ fun MapScreen(
             vm.addVertex(lat, lon)
         }
     })
+
+    // The host can ask the map to leave trace mode (system back) without losing the sketch.
+    LaunchedEffect(exitTraceSignal) {
+        if (exitTraceSignal > 0 && mode == MapMode.TRACE) mode = MapMode.EXPLORE
+    }
+    LaunchedEffect(tracing) { onTracingChanged(tracing) }
+
+    // A locked area freezes the camera: gestures off, taps become boundary vertices.
+    LaunchedEffect(controller, tracing) {
+        controller?.setLocked(tracing)
+        metresPerPixel = controller?.metresPerPixel()
+    }
 
     // Keep the traced ring inside the visible band between the header and the action sheet.
     val density = androidx.compose.ui.platform.LocalDensity.current
@@ -137,7 +157,14 @@ fun MapScreen(
             fitRequest = fitRequest,
             onController = { c ->
                 controller = c
-                c.onCameraMoved = { cameraMoved = true }
+                c.onCameraMoved = { moving ->
+                    if (moving) {
+                        cameraMoved = true
+                    } else {
+                        // Camera idle: refresh the scale bar and re-sync the lock state.
+                        metresPerPixel = c.metresPerPixel()
+                    }
+                }
             },
             onLoadState = { mapReady = true },
         )
@@ -162,6 +189,17 @@ fun MapScreen(
                 exit = fadeOut(tween(140)),
             ) {
                 SketchReadout(areaText, GeoMath.perimeterM(state.vertices))
+            }
+            // Nothing works without a reachable backend: say so once, with a shortcut to fix it.
+            AnimatedVisibility(
+                visible = state.backendOnline == false && !offlineDismissed,
+                enter = fadeIn(tween(220)),
+                exit = fadeOut(tween(140)),
+            ) {
+                OfflineNotice(
+                    onOpenSettings = onOpenSettings,
+                    onDismiss = { offlineDismissed = true },
+                )
             }
         }
 
@@ -195,6 +233,17 @@ fun MapScreen(
             TracingReticle()
         }
 
+        MapScaleBar(
+            metresPerPixel = metresPerPixel,
+            modifier = Modifier
+                .align(Alignment.BottomStart)
+                .padding(
+                    start = Dims.l,
+                    bottom = contentPadding.calculateBottomPadding() +
+                        if (tracing) 232.dp else 172.dp,
+                ),
+        )
+
         MapLoadingOverlay(visible = !mapReady)
 
         // --- Bottom control dock ------------------------------------------- //
@@ -204,6 +253,7 @@ fun MapScreen(
             vertexCount = vertexCount,
             busy = state.busy,
             canAnalyze = canAnalyze,
+            runError = state.runError,
             bottomInset = contentPadding.calculateBottomPadding(),
             cameraMoved = cameraMoved,
             onLock = {
@@ -218,23 +268,32 @@ fun MapScreen(
             onAnalyze = {
                 haptics.performHapticFeedback(HapticFeedbackType.LongPress)
                 pinned = true
+                vm.dismissError()
                 vm.analyze()
             },
+            onDismissError = { vm.dismissError() },
         )
 
         // --- Full-screen collection overlay while the run is in flight ------ //
         CollectionOverlay(
-            visible = state.busy || (pinned && state.catalog == null),
+            // Only the blocking validate+catalog stage gets the full-screen treatment; the terrain
+            // step keeps running in the background on the Results screen.
+            visible = state.busy || (pinned && state.catalog == null && state.runError == null),
             vertices = vertexCount,
         )
     }
 
-    // Jump to the Results tab as soon as the server validation arrives.
-    LaunchedEffect(state.validation) {
-        if (state.validation != null && !state.busy) {
+    // Jump to the Results tab once validation + catalog are in (terrain keeps loading there).
+    LaunchedEffect(state.validation, state.catalog) {
+        if (state.validation?.valid == true && state.catalog != null && !state.busy) {
             pinned = false
             onAnalyzed()
         }
+    }
+
+    // A failed run keeps the user on the map with the dock's retry affordance visible.
+    LaunchedEffect(state.runError) {
+        if (state.runError != null) pinned = false
     }
 }
 
@@ -372,6 +431,56 @@ private fun MapCircleButton(
     }
 }
 
+/**
+ * Shown only when the startup probe could not reach the backend. Dismissible so it never becomes
+ * a permanent nag while the user is still setting things up.
+ */
+@Composable
+private fun OfflineNotice(onOpenSettings: () -> Unit, onDismiss: () -> Unit) {
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .clip(MaterialTheme.shapes.medium)
+            .background(MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.94f))
+            .padding(start = Dims.m, end = Dims.xs, top = Dims.s, bottom = Dims.s),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(Dims.s),
+    ) {
+        Icon(
+            SubsurfIcons.Offline,
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.onErrorContainer,
+            modifier = Modifier.size(18.dp),
+        )
+        Column(Modifier.weight(1f)) {
+            Text(
+                stringResource(R.string.offline_banner_title),
+                style = MaterialTheme.typography.labelLarge,
+                color = MaterialTheme.colorScheme.onErrorContainer,
+            )
+            Text(
+                stringResource(R.string.offline_banner_body),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onErrorContainer,
+                maxLines = 3,
+            )
+        }
+        TextButton(onClick = onOpenSettings) {
+            Text(stringResource(R.string.action_open_settings))
+        }
+        Icon(
+            SubsurfIcons.Minus,
+            contentDescription = stringResource(R.string.action_dismiss),
+            tint = MaterialTheme.colorScheme.onErrorContainer,
+            modifier = Modifier
+                .size(30.dp)
+                .clip(CircleShape)
+                .clickable(onClick = onDismiss)
+                .padding(6.dp),
+        )
+    }
+}
+
 // --------------------------------------------------------------------------- //
 // Tracing reticle: a pulsing crosshair that tells the user taps now drop points
 // --------------------------------------------------------------------------- //
@@ -432,12 +541,14 @@ private fun BottomDock(
     vertexCount: Int,
     busy: Boolean,
     canAnalyze: Boolean,
+    runError: String?,
     bottomInset: androidx.compose.ui.unit.Dp,
     cameraMoved: Boolean,
     onLock: () -> Unit,
     onUndo: () -> Unit,
     onClear: () -> Unit,
     onAnalyze: () -> Unit,
+    onDismissError: () -> Unit,
 ) {
     Column(
         modifier
@@ -447,6 +558,47 @@ private fun BottomDock(
             .animateContentSize(tween(240)),
         verticalArrangement = Arrangement.spacedBy(Dims.s),
     ) {
+        // A failed collection is shown in place, with a one-tap retry, so the user never has to
+        // hunt for what happened.
+        AnimatedVisibility(
+            visible = runError != null,
+            enter = fadeIn(tween(180)),
+            exit = fadeOut(tween(140)),
+        ) {
+            Row(
+                Modifier
+                    .fillMaxWidth()
+                    .clip(MaterialTheme.shapes.medium)
+                    .background(MaterialTheme.colorScheme.errorContainer)
+                    .padding(horizontal = Dims.m, vertical = Dims.s),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(Dims.s),
+            ) {
+                Icon(
+                    SubsurfIcons.Caveat,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onErrorContainer,
+                    modifier = Modifier.size(18.dp),
+                )
+                Column(Modifier.weight(1f)) {
+                    Text(
+                        stringResource(R.string.run_failed_title),
+                        style = MaterialTheme.typography.labelLarge,
+                        color = MaterialTheme.colorScheme.onErrorContainer,
+                    )
+                    Text(
+                        runError ?: "",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onErrorContainer,
+                        maxLines = 3,
+                    )
+                }
+                TextButton(onClick = onDismissError) {
+                    Text(stringResource(R.string.action_dismiss))
+                }
+            }
+        }
+
         // Hint line changes with the mode so the next gesture is always obvious.
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Center) {
             Pill(
@@ -561,7 +713,13 @@ private fun BottomDock(
                     Spacer(Modifier.width(8.dp))
                 }
                 Text(
-                    stringResource(if (busy) R.string.analyzing_short else R.string.action_start_run),
+                    stringResource(
+                        when {
+                            busy -> R.string.analyzing_short
+                            runError != null -> R.string.action_retry
+                            else -> R.string.action_start_run
+                        },
+                    ),
                     style = MaterialTheme.typography.labelLarge,
                     maxLines = 1,
                 )
