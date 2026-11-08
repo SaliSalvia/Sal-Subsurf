@@ -35,19 +35,18 @@ data class UiState(
     val runError: String? = null,
     /** Area text captured when the run started, so the report can echo it. */
     val runAreaLabel: String? = null,
-)
-    /** True while either network stage of a run is in flight. */
-    val isCollecting: Boolean get() = busy || terrainBusy
-
     /**
      * Resolved light/dark flag. Written by the activity once per composition so that screens
      * (and the map basemap) follow the user's theme choice, not just the system setting.
      */
-    val isDark: Boolean = true
-
+    val isDark: Boolean = true,
     /** Result of the startup reachability probe (`null` = not checked yet). */
     val backendOnline: Boolean? = null,
     val backendChecked: Boolean = false,
+) {
+    /** True while either network stage of a run is in flight. */
+    val isCollecting: Boolean get() = busy || terrainBusy
+}
 
 
 class AppViewModel(app: Application) : AndroidViewModel(app) {
