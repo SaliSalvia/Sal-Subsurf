@@ -237,7 +237,7 @@ private fun ValidationCard(
         )
         MetricRow {
             MetricCell(
-                value = fmt(areaHectares, areaHectares >= 100 ? 0 : 2),
+                value = fmt(areaHectares, if (areaHectares >= 100) 0 else 2),
                 label = stringResource(R.string.metric_area),
                 unit = stringResource(R.string.unit_hectare),
                 emphasis = true,

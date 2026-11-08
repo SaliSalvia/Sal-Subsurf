@@ -6,46 +6,44 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
-### Android — presentation overhaul (no backend, architecture or API changes)
+_Nothing yet._
 
-Purely visual/UX work on the Android client. Networking, ViewModel logic, geo maths, API
-contracts and the FastAPI backend are untouched.
+## [1.4.0] - 2026-11-08
 
-#### Added
-- **Design system** (`ui/theme`, `ui/components`): full Material 3 colour schemes for light and
-  dark (hand-tuned AA contrast), a dedicated type scale, a spacing/elevation token set, and
-  reusable primitives — `SubsurfCard`, `CardHeader`, `Pill`, `MetricValue`/`MetricRow`,
-  `MeterBar`/`MeterRow`, `InfoBanner`, `BulletLine`, `EmptyState`, `SegmentedPicker`.
-- **Local icon set** (`ui/icons`): 20 hand-built 24dp glyphs on a single 2dp optical stroke.
-  Keeps the APK small — no `material-icons-extended` dependency was added.
-- **Theme choice**: System / Light / Dark, persisted locally (`SettingsStore.themeMode`).
-- **Real cartography**: the key-less MapLibre *demo* style was replaced with OpenFreeMap
-  vector basemaps (Positron in light, Dark in dark mode), so roads, water and land cover
-  actually render and the map matches the app theme.
-- **Live sketch feedback**: floating area/perimeter read-out, vertex progress pill and a
-  step-dot indicator; the polygon fill, connecting line and vertex markers now have distinct
-  layers with a soft halo, plus in-map zoom and "fit region" controls.
-- **Results as a report**: validation hero, metric grid, animated surface-anomaly gauge with a
-  transparent component breakdown, satellite products with cloud-quality pills, terrain metric
-  cards, provenance/caveat sections and a proper empty state that links back to the map.
-- **Settings**: connection section with inline URL validation, typed test-connection result
-  banner (success/failure), appearance picker, data-source cards and an about/licence block.
-- **Branding**: new adaptive launcher icon (light/dark/monochrome), round icon variant and a
-  dependency-free branded launch window (`launch_screen` layer-list) instead of a white flash.
+Exploration-flow and identity release. **Presentation only** — backend, API contracts, geo maths
+and the analysis pipeline are untouched.
 
-#### Changed
-- Floating pill navigation bar with animated selection capsule (replaces the stock bar).
-- Edge-to-edge layout handled through `WindowInsets.safeDrawing`; screens respect the status
-  bar, navigation pill and display cut-outs (`shortEdges`).
-- All user-facing copy revised and fully translated (English + فارسی); no hardcoded UI strings.
+### Fixed
+- **Release build broken on `main`** (introduced with the v1.3.0 UI work): `BRAND`/`BRAND_LIGHT`
+  were declared `const val` but initialised with `.toInt()`, which is not a compile-time constant
+  in Kotlin. They are now `val`s, and `AndroidManifest`-referenced `@mipmap/ic_launcher_round`
+  exists at every density.
 
-#### Performance
-- Map GeoJSON source is only rewritten when the sketch geometry actually changes (previously
-  every recomposition rebuilt the feature collection, which stuttered during animations).
-- Sketch layers install on a freshly loaded style without redundant look-ups.
-- Theme flips reload the basemap in place and replay the sketch, so the map never resets.
-- Icon/animation work is allocation-light (precomputed vectors, `graphicsLayer` scaling), and
-  the launcher icon gained a monochrome variant for themed-icon rendering.
+### Added — Google-Earth-style exploration
+- The home screen now opens on the **globe** and behaves like a maps app: free one-finger pan,
+  pinch zoom, a "back to globe" and "recenter/fit" control, and no accidental vertex drops.
+- **Lock → trace → collect**: a prominent **Lock** button freezes the camera, and each tap then
+  places a corner of the exploration boundary. The boundary is drawn as a **red and black dashed
+  ring** (`lineDasharray`) over a faint gold fill, with gold vertex handles, a blue centroid
+  marker and a pulsing crosshair reticle while tracing.
+- Live area/perimeter read-out while tracing, plus a step-dot progress indicator (3–10 points).
+- A full-screen **collection overlay** ("Collecting data for your area") with staged progress
+  rows for validation → satellite catalog → terrain indicators.
+- One run now gathers the complete picture: when the Sentinel-2 catalog for the locked area
+  arrives, the terrain indicators are fetched automatically (UI orchestration only).
+
+### Added — brand identity from the logo
+- New launcher icon generated from the supplied artwork at every density, plus adaptive
+  foreground/background (near-black plate), round variants and a monochrome themed-icon glyph.
+- Branded launch window built from the logo; the app **defaults to the dark theme** because the
+  logo is luminous artwork on black (Light and System remain selectable in Settings).
+- Full palette rebuilt around the logo: obsidian neutrals, **molten gold** primary, **electric
+  blue** secondary and **ember orange** alerts, in both light and dark schemes.
+- The logo now appears in the map header plate and in Settings → About.
+
+### Changed
+- Every screen was re-cut against the new palette; removed unused colour/style tokens.
+- Copy for the new flow added and translated in English + فارسی (no dead string keys remain).
 
 ## [1.3.0] - 2026-11-07
 
@@ -104,6 +102,52 @@ Calibration & honesty release, driven by an independent scientific review of v1.
 ### Changed
 - Version bump to 1.3.0 (app `versionCode` 4; backend 1.3.0; report schema
   `subsurf.deep.report/1.3.0`); `scipy>=1.11` added to backend dependencies.
+
+## [1.3.1] - 2026-11-07
+
+_See 1.4.0 below._
+
+
+### Android — presentation overhaul (PR #11)
+
+Purely visual/UX work on the Android client. Networking, ViewModel logic, geo maths, API
+contracts and the FastAPI backend are untouched.
+
+#### Added
+- **Design system** (`ui/theme`, `ui/components`): full Material 3 colour schemes for light and
+  dark (hand-tuned AA contrast), a dedicated type scale, a spacing/elevation token set, and
+  reusable primitives — `SubsurfCard`, `CardHeader`, `Pill`, `MetricValue`/`MetricRow`,
+  `MeterBar`/`MeterRow`, `InfoBanner`, `BulletLine`, `EmptyState`, `SegmentedPicker`.
+- **Local icon set** (`ui/icons`): 20 hand-built 24dp glyphs on a single 2dp optical stroke.
+  Keeps the APK small — no `material-icons-extended` dependency was added.
+- **Theme choice**: System / Light / Dark, persisted locally (`SettingsStore.themeMode`).
+- **Real cartography**: the key-less MapLibre *demo* style was replaced with OpenFreeMap
+  vector basemaps (Positron in light, Dark in dark mode), so roads, water and land cover
+  actually render and the map matches the app theme.
+- **Live sketch feedback**: floating area/perimeter read-out, vertex progress pill and a
+  step-dot indicator; the polygon fill, connecting line and vertex markers now have distinct
+  layers with a soft halo, plus in-map zoom and "fit region" controls.
+- **Results as a report**: validation hero, metric grid, animated surface-anomaly gauge with a
+  transparent component breakdown, satellite products with cloud-quality pills, terrain metric
+  cards, provenance/caveat sections and a proper empty state that links back to the map.
+- **Settings**: connection section with inline URL validation, typed test-connection result
+  banner (success/failure), appearance picker, data-source cards and an about/licence block.
+- **Branding**: new adaptive launcher icon (light/dark/monochrome), round icon variant and a
+  dependency-free branded launch window (`launch_screen` layer-list) instead of a white flash.
+
+#### Changed
+- Floating pill navigation bar with animated selection capsule (replaces the stock bar).
+- Edge-to-edge layout handled through `WindowInsets.safeDrawing`; screens respect the status
+  bar, navigation pill and display cut-outs (`shortEdges`).
+- All user-facing copy revised and fully translated (English + فارسی); no hardcoded UI strings.
+
+#### Performance
+- Map GeoJSON source is only rewritten when the sketch geometry actually changes (previously
+  every recomposition rebuilt the feature collection, which stuttered during animations).
+- Sketch layers install on a freshly loaded style without redundant look-ups.
+- Theme flips reload the basemap in place and replay the sketch, so the map never resets.
+- Icon/animation work is allocation-light (precomputed vectors, `graphicsLayer` scaling), and
+  the launcher icon gained a monochrome variant for themed-icon rendering.
 
 ## [1.2.0] - 2026-11-07
 

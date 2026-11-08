@@ -23,10 +23,14 @@ class SettingsStore(context: Context) {
             prefs.edit().putString(KEY_URL, value).apply()
         }
 
+    /**
+     * Defaults to [ThemeMode.DARK]: the brand logo is luminous artwork on black, so the app opens
+     * in the identity it was designed in. Users can switch to Light or follow the device.
+     */
     var themeMode: ThemeMode
         get() {
-            val raw = prefs.getString(KEY_THEME, null) ?: return ThemeMode.SYSTEM
-            return ThemeMode.entries.firstOrNull { it.name == raw } ?: ThemeMode.SYSTEM
+            val raw = prefs.getString(KEY_THEME, null) ?: return ThemeMode.DARK
+            return ThemeMode.entries.firstOrNull { it.name == raw } ?: ThemeMode.DARK
         }
         set(value) {
             prefs.edit().putString(KEY_THEME, value.name).apply()

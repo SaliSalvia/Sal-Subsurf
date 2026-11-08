@@ -1,41 +1,16 @@
 <?xml version="1.0" encoding="utf-8"?>
-<vector xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:aapt="http://schemas.android.com/aapt"
-    android:width="128dp"
-    android:height="128dp"
-    android:viewportWidth="128"
-    android:viewportHeight="128">
-    <!-- Rounded brand tile with the survey-ring mark, used only on the launch window. -->
-    <path android:pathData="M28,0 H100 A28,28 0 0,1 128,28 V100 A28,28 0 0,1 100,128 H28 A28,28 0 0,1 0,100 V28 A28,28 0 0,1 28,0 Z">
-        <aapt:attr name="android:fillColor">
-            <gradient
-                android:startX="0"
-                android:startY="0"
-                android:endX="128"
-                android:endY="128"
-                android:type="linear">
-                <item android:offset="0" android:color="#FF0E6153" />
-                <item android:offset="1" android:color="#FF063129" />
-            </gradient>
-        </aapt:attr>
-    </path>
-    <group
-        android:scaleX="1.02"
-        android:scaleY="1.02"
-        android:pivotX="64"
-        android:pivotY="64">
-        <path
-            android:fillColor="#33FFFFFF"
-            android:pathData="M64,38 L90,51 L86,79 L49,84 L39,56 Z" />
-        <path
-            android:strokeColor="#FFFFFF"
-            android:strokeWidth="3"
-            android:strokeLineJoin="round"
-            android:pathData="M64,38 L90,51 L86,79 L49,84 L39,56 Z" />
-        <path android:fillColor="#FFFFFF" android:pathData="M64,34 A4,4 0 1,1 64,42 A4,4 0 1,1 64,34 Z" />
-        <path android:fillColor="#FFFFFF" android:pathData="M90,47 A4,4 0 1,1 90,55 A4,4 0 1,1 90,47 Z" />
-        <path android:fillColor="#FFFFFF" android:pathData="M86,75 A4,4 0 1,1 86,83 A4,4 0 1,1 86,75 Z" />
-        <path android:fillColor="#FFFFFF" android:pathData="M49,80 A4,4 0 1,1 49,88 A4,4 0 1,1 49,80 Z" />
-        <path android:fillColor="#FFFFFF" android:pathData="M39,52 A4,4 0 1,1 39,60 A4,4 0 1,1 39,52 Z" />
-    </group>
-</vector>
+<!-- Launch mark: the full-colour logo on its dark plate, drawn at 33 % of the shortest side
+     (the platform's standard splash proportion) so the hand-off to Compose is seamless. -->
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <item>
+        <shape android:shape="rectangle">
+            <corners android:radius="28dp" />
+            <solid android:color="#050709" />
+        </shape>
+    </item>
+    <item
+        android:width="88dp"
+        android:height="88dp"
+        android:gravity="center"
+        android:drawable="@drawable/logo_brand" />
+</layer-list>

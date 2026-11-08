@@ -56,6 +56,7 @@ import org.maplibre.android.style.layers.PropertyFactory.circleStrokeWidth
 import org.maplibre.android.style.layers.PropertyFactory.fillColor
 import org.maplibre.android.style.layers.PropertyFactory.fillOutlineColor
 import org.maplibre.android.style.layers.PropertyFactory.lineColor
+import org.maplibre.android.style.layers.PropertyFactory.lineDasharray
 import org.maplibre.android.style.layers.PropertyFactory.lineJoin
 import org.maplibre.android.style.layers.PropertyFactory.lineWidth
 import org.maplibre.android.style.sources.GeoJsonSource
@@ -66,171 +67,244 @@ import org.maplibre.geojson.Point
 import org.maplibre.geojson.Polygon
 
 /**
- * Free, key-less vector basemaps (OpenFreeMap, OSM-derived). The demo style that used to be
- * here shipped no real cartography, which made the map look unfinished; these render proper
- * roads, water and land cover.
+ * Free, key-less vector basemaps (OpenFreeMap, OSM-derived). The old MapLibre *demo* style had no
+ * real cartography, which is what made the map look unfinished next to Google Earth/Maps.
  */
 private const val STYLE_LIGHT = "https://tiles.openfreemap.org/styles/positron"
 private const val STYLE_DARK = "https://tiles.openfreemap.org/styles/dark"
 
 private const val SRC = "subsurf-region-src"
+private const val SRC_TRACE = "subsurf-trace-src"
 private const val LAYER_FILL = "subsurf-region-fill"
 private const val LAYER_OPEN = "subsurf-region-open"
 private const val LAYER_LINE = "subsurf-region-line"
+private const val LAYER_DASH = "subsurf-trace-dash"
 private const val LAYER_HALO = "subsurf-region-halo"
 private const val LAYER_POINTS = "subsurf-region-points"
+private const val LAYER_CENTER = "subsurf-region-center"
 
-private const val DEFAULT_LAT = 35.6892
-private const val DEFAULT_LON = 51.3890
-private const val DEFAULT_ZOOM = 9.5
+/** Whole-earth opening view, like the first frame of Google Earth. */
+private const val DEFAULT_LAT = 22.0
+private const val DEFAULT_LON = 12.0
+private const val GLOBE_ZOOM = 1.6
+private const val FOCUS_ZOOM = 11.5
 
-// Brand teal as raw ARGB ints, mirrored from the Compose palette (drawing code is not Compose).
-private const val BRAND = 0xFF14705F.toInt()
-private const val BRAND_LIGHT = 0xFF3FB39B.toInt()
+/** Logo-derived acccents: gold signal, electric blue highlight, ember alert. */
+private val GOLD = 0xFFF5C542.toInt()
+private val GOLD_DIM = 0xFFC08A10.toInt()
+private val BLUE = 0xFF35B4F2.toInt()
+private val EMBER = 0xFFFF8A50.toInt()
 
 /**
- * Bridges the Compose world to the MapLibre view. Owns the GeoJSON source and pushes the
- * sketched geometry into it; tolerates style reloads by replaying the last vertices once the
- * style is ready, so a theme switch never loses the sketch.
+ * Bridges Compose to the MapLibre view: owns the sketch sources/layers, remembers the camera and
+ * tolerates style reloads (theme switches replay the geometry instead of losing it).
+ *
+ * Drawing model — deliberately Google-Earth-like:
+ *  * free pan/zoom with one finger,
+ *  * a **lock** toggles "tracing" mode; while tracing, the camera is fixed and every tap adds a
+ *    vertex of the exploration boundary,
+ *  * the boundary is rendered as a black **and** red dashed ring over a faint amber fill, plus a
+ *    crosshair at the centroid.
  */
 class RegionMapController {
 
     var onTap: ((Double, Double) -> Unit)? = null
+    var onCameraMoved: ((Boolean) -> Unit)? = null
 
     private var map: MapLibreMap? = null
-    private var source: GeoJsonSource? = null
+    private var regionSource: GeoJsonSource? = null
+    private var traceSource: GeoJsonSource? = null
     private var pending: List<Vertex> = emptyList()
-    private var darkStyle: Boolean? = null
-    private var brandArgb: Int = BRAND
     private var lastPushed: List<Vertex>? = null
+    private var darkStyle: Boolean? = null
+    private var viewInset: IntArray = intArrayOf(0, 0, 0, 0)
 
     fun onMapReady(map: MapLibreMap, dark: Boolean) {
         this.map = map
         darkStyle = dark
-        brandArgb = if (dark) BRAND_LIGHT else BRAND
         map.moveCamera(
-            CameraUpdateFactory.newLatLngZoom(LatLng(DEFAULT_LAT, DEFAULT_LON), DEFAULT_ZOOM)
+            CameraUpdateFactory.newLatLngZoom(LatLng(DEFAULT_LAT, DEFAULT_LON), GLOBE_ZOOM),
         )
+        map.uiSettings.apply {
+            isAttributionEnabled = false
+            isLogoEnabled = false
+            isCompassEnabled = false
+            isRotateGesturesEnabled = false
+            isTiltGesturesEnabled = false
+        }
         map.addOnMapClickListener(
             MapLibreMap.OnMapClickListener { point ->
                 onTap?.invoke(point.latitude, point.longitude)
                 true
-            }
+            },
         )
+        map.addOnCameraMoveStartedListener { onCameraMoved?.invoke(true) }
         loadStyle(dark)
     }
 
-    /** Swaps the basemap when the system theme changes, keeping the sketch intact. */
+    /** Swaps the basemap when the theme changes, replaying the sketch afterwards. */
     fun syncTheme(dark: Boolean) {
         if (map == null || darkStyle == dark) return
         darkStyle = dark
-        brandArgb = if (dark) BRAND_LIGHT else BRAND
         loadStyle(dark)
     }
 
     private fun loadStyle(dark: Boolean) {
         val current = map ?: return
-        source = null
+        regionSource = null
+        traceSource = null
         lastPushed = null
         current.setStyle(
             Style.Builder().fromUri(if (dark) STYLE_DARK else STYLE_LIGHT),
             object : Style.OnStyleLoaded {
                 override fun onStyleLoaded(style: Style) {
                     installLayers(style)
+                    applyInset()
                 }
             },
         )
     }
 
     private fun installLayers(style: Style) {
-        // installLayers only ever runs on a freshly loaded style, so there is nothing to remove.
-        val src = GeoJsonSource(SRC)
-        style.addSource(src)
-        source = src
+        // --- The traced exploration boundary ------------------------------- //
+        val trace = GeoJsonSource(SRC_TRACE)
+        style.addSource(trace)
+        traceSource = trace
 
         style.addLayer(
-            FillLayer(LAYER_FILL, SRC).withProperties(
-                fillColor(Color.argb(46, Color.red(brandArgb), Color.green(brandArgb), Color.blue(brandArgb))),
+            FillLayer(LAYER_FILL, SRC_TRACE).withProperties(
+                fillColor(Color.argb(38, Color.red(GOLD), Color.green(GOLD), Color.blue(GOLD))),
                 fillOutlineColor(Color.TRANSPARENT),
             ),
         )
-        // Open polyline while the ring is still being drawn.
+        // Solid dark under-stroke so the dashed line reads on bright satellite imagery.
         style.addLayer(
-            LineLayer(LAYER_OPEN, SRC).withProperties(
-                lineColor(brandArgb),
-                lineWidth(2.0f),
+            LineLayer(LAYER_OPEN, SRC_TRACE).withProperties(
+                lineColor(Color.argb(150, 0, 0, 0)),
+                lineWidth(5.5f),
                 lineJoin("round"),
             ),
         )
+        // The red dashed boundary itself.
         style.addLayer(
-            LineLayer(LAYER_LINE, SRC).withProperties(
-                lineColor(brandArgb),
-                lineWidth(2.6f),
+            LineLayer(LAYER_DASH, SRC_TRACE).withProperties(
+                lineColor(EMBER),
+                lineWidth(2.8f),
+                lineJoin("round"),
+                lineDasharray(arrayOf(2.0f, 1.6f)),
+            ),
+        )
+        style.addLayer(
+            LineLayer(LAYER_LINE, SRC_TRACE).withProperties(
+                lineColor(GOLD),
+                lineWidth(1.4f),
                 lineJoin("round"),
             ),
         )
-        // Soft halo behind each vertex improves the perceived tap target on busy imagery.
+
+        // --- Vertex handles ------------------------------------------------- //
+        val region = GeoJsonSource(SRC)
+        style.addSource(region)
+        regionSource = region
+
         style.addLayer(
             CircleLayer(LAYER_HALO, SRC).withProperties(
-                circleColor(brandArgb),
-                circleRadius(13.0f),
-                circleOpacity(0.20f),
+                circleColor(GOLD),
+                circleRadius(14.0f),
+                circleOpacity(0.22f),
             ),
         )
         style.addLayer(
             CircleLayer(LAYER_POINTS, SRC).withProperties(
-                circleColor(brandArgb),
+                circleColor(GOLD),
                 circleRadius(6.5f),
                 circleStrokeWidth(2.5f),
-                circleStrokeColor(Color.WHITE),
+                circleStrokeColor(Color.BLACK),
+            ),
+        )
+        style.addLayer(
+            CircleLayer(LAYER_CENTER, SRC).withProperties(
+                circleColor(BLUE),
+                circleRadius(4.0f),
+                circleOpacity(0.9f),
             ),
         )
         push(pending)
     }
 
     /**
-     * Pushes the sketch into the GeoJSON source. Called on every recomposition, so it bails out
-     * early when nothing changed — rebuilding the feature collection each frame made the map
-     * stutter while the action sheet was animating.
+     * Pushes the sketch into both sources. Called on every recomposition, so it bails out when
+     * nothing changed — rebuilding the collections each frame made the map stutter while the
+     * action sheet animated.
      */
     fun push(vertices: List<Vertex>) {
         pending = vertices
-        val src = source ?: return
         if (vertices == lastPushed) return
         lastPushed = vertices
-        // Nothing to draw for an empty or single-point sketch beyond the point markers below.
+
         val points = vertices.map { Point.fromLngLat(it.lon, it.lat) }
-        val features = ArrayList<Feature>(points.size + 2)
-        if (points.size >= 3) {
-            features.add(
-                Feature.fromGeometry(Polygon.fromLngLats(listOf(points + points.first())))
-            )
-        } else if (points.size == 2) {
-            features.add(Feature.fromGeometry(LineString.fromLngLats(points)))
+
+        // Ring geometry (dashed boundary) lives in its own source.
+        traceSource?.let { src ->
+            val ring = ArrayList<Feature>(1)
+            when {
+                points.size >= 3 -> ring.add(
+                    Feature.fromGeometry(Polygon.fromLngLats(listOf(points + points.first()))),
+                )
+                points.size == 2 -> ring.add(Feature.fromGeometry(LineString.fromLngLats(points)))
+            }
+            src.setGeoJson(FeatureCollection.fromFeatures(ring))
         }
-        for (p in points) features.add(Feature.fromGeometry(p))
-        src.setGeoJson(FeatureCollection.fromFeatures(features))
+
+        // Handles: vertices plus a centroid marker once a polygon exists.
+        regionSource?.let { src ->
+            val features = ArrayList<Feature>(points.size + 1)
+            for (p in points) features.add(Feature.fromGeometry(p))
+            if (points.size >= 3) {
+                var lat = 0.0
+                var lon = 0.0
+                for (v in vertices) {
+                    lat += v.lat
+                    lon += v.lon
+                }
+                val n = vertices.size.toDouble()
+                features.add(Feature.fromGeometry(Point.fromLngLat(lon / n, lat / n)))
+            }
+            src.setGeoJson(FeatureCollection.fromFeatures(features))
+        }
     }
 
-    /**
-     * Shrinks the usable map viewport by the given pixel insets so that "fit to region" frames
-     * the sketch in the area that is not covered by the floating header and action sheet.
-     */
+    /** Shrinks the usable viewport so the sketch frames between the header and the action sheet. */
     fun setViewInset(top: Int, bottom: Int, start: Int = 0, end: Int = 0) {
-        val current = map ?: return
-        runCatching { current.setPadding(start, top, end, bottom) }
+        viewInset = intArrayOf(start, top, end, bottom)
+        applyInset()
     }
 
-    /** Frame the whole sketch with a comfortable margin. */
+    private fun applyInset() {
+        val current = map ?: return
+        runCatching {
+            current.setPadding(viewInset[0], viewInset[1], viewInset[2], viewInset[3])
+        }
+    }
+
+    /** Zooms to a whole-earth view (the "back to globe" affordance). */
+    fun showGlobe() {
+        map?.animateCamera(
+            CameraUpdateFactory.newLatLngZoom(LatLng(DEFAULT_LAT, DEFAULT_LON), GLOBE_ZOOM),
+            900,
+        )
+    }
+
+    /** Frames the whole sketch with a comfortable margin. */
     fun fitTo(vertices: List<Vertex>) {
         val current = map ?: return
         if (vertices.isEmpty()) return
         if (vertices.size == 1) {
             current.animateCamera(
                 CameraUpdateFactory.newLatLngZoom(
-                    LatLng(vertices.first().lat, vertices.first().lon), 14.0,
+                    LatLng(vertices.first().lat, vertices.first().lon), FOCUS_ZOOM,
                 ),
-                600,
+                700,
             )
             return
         }
@@ -244,24 +318,36 @@ class RegionMapController {
             if (v.lon < minLon) minLon = v.lon
             if (v.lon > maxLon) maxLon = v.lon
         }
-        val bounds = LatLngBounds.from(maxLat, maxLon, minLat, minLon)
-        val pad = 72
+        // A single point or a degenerate bbox would make newLatLngBounds blow up.
+        if (maxLat - minLat < 1e-6 && maxLon - minLon < 1e-6) {
+            current.animateCamera(
+                CameraUpdateFactory.newLatLngZoom(LatLng(minLat, minLon), FOCUS_ZOOM),
+                700,
+            )
+            return
+        }
+        val padded = LatLngBounds.from(
+            maxLat + 1e-5, maxLon + 1e-5, minLat - 1e-5, minLon - 1e-5,
+        )
         current.animateCamera(
-            CameraUpdateFactory.newLatLngBounds(bounds, pad, pad, pad, pad),
-            600,
+            CameraUpdateFactory.newLatLngBounds(padded, 96, 96, 96, 96),
+            700,
         )
     }
 
-    /** Zoom helper used by the on-map controls. */
     fun zoomBy(delta: Double) {
         val current = map ?: return
-        val target = (current.cameraPosition.zoom + delta).coerceIn(1.0, 20.0)
+        val target = (current.cameraPosition.zoom + delta).coerceIn(0.5, 20.0)
         current.animateCamera(CameraUpdateFactory.zoomTo(target), 220)
     }
+
+    /** Current zoom, used by the UI to decide how much map context to show. */
+    fun currentZoom(): Double = map?.cameraPosition?.zoom ?: GLOBE_ZOOM
 }
 
 /**
- * @param fitRequest increment this counter to animate the camera onto the current sketch.
+ * @param locked when true the camera is frozen and taps add boundary vertices
+ * @param fitRequest increment to animate the camera onto the current sketch
  */
 @Composable
 fun RegionMapView(
@@ -289,13 +375,6 @@ fun RegionMapView(
                 onResume()
                 getMapAsync(
                     OnMapReadyCallback { map ->
-                        map.uiSettings.apply {
-                            isAttributionEnabled = false // a permanent credit line lives in the UI
-                            isLogoEnabled = false
-                            isCompassEnabled = false
-                            isRotateGesturesEnabled = false
-                            isTiltGesturesEnabled = false
-                        }
                         controller.onMapReady(map, currentDark)
                         onController(controller)
                     },
@@ -316,7 +395,7 @@ fun RegionMapView(
     LaunchedEffect(fitRequest, mapView) {
         if (fitRequest > 0 && mapView != null) {
             // Give the surface a frame so bounds fitting uses the real viewport.
-            kotlinx.coroutines.delay(320)
+            kotlinx.coroutines.delay(280)
             controller.fitTo(vertices)
         }
     }
@@ -333,7 +412,7 @@ fun RegionMapView(
     }
 }
 
-/** Simple on-map zoom pair; kept tiny and translucent so it never competes with the sheet. */
+/** Vertical zoom pair, styled like Google Maps' map controls. */
 @Composable
 fun MapZoomControls(
     onZoomIn: () -> Unit,
@@ -342,14 +421,14 @@ fun MapZoomControls(
 ) {
     Column(
         modifier
-            .clip(MaterialTheme.shapes.medium)
-            .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.92f)),
+            .clip(MaterialTheme.shapes.large)
+            .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.94f)),
         verticalArrangement = Arrangement.spacedBy(1.dp),
     ) {
         ZoomButton(SubsurfIcons.Plus, "Zoom in", onZoomIn)
         Box(
             Modifier
-                .padding(horizontal = 8.dp)
+                .padding(horizontal = 10.dp)
                 .fillMaxWidth()
                 .height(1.dp)
                 .background(MaterialTheme.colorScheme.outlineVariant),
@@ -362,7 +441,7 @@ fun MapZoomControls(
 private fun ZoomButton(icon: ImageVector, label: String, onClick: () -> Unit) {
     Box(
         Modifier
-            .size(44.dp)
+            .size(46.dp)
             .clickable(onClick = onClick),
         contentAlignment = Alignment.Center,
     ) {
@@ -380,7 +459,7 @@ private fun ZoomButton(icon: ImageVector, label: String, onClick: () -> Unit) {
 fun MapLoadingOverlay(visible: Boolean, modifier: Modifier = Modifier) {
     AnimatedVisibility(visible, modifier, enter = fadeIn(), exit = fadeOut()) {
         Box(
-            Modifier.fillMaxSize().background(MaterialTheme.colorScheme.surface.copy(alpha = 0.55f)),
+            Modifier.fillMaxSize().background(MaterialTheme.colorScheme.surface.copy(alpha = 0.6f)),
             contentAlignment = Alignment.Center,
         ) {
             Row(

@@ -2,6 +2,7 @@ package com.salsalvia.subsurf.ui.theme
 
 import android.app.Activity
 import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Shapes
 import androidx.compose.material3.darkColorScheme
@@ -14,40 +15,45 @@ import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.unit.dp
 import androidx.core.view.WindowCompat
 
+/**
+ * Light scheme — a daylight "field instrument": crisp white surfaces, gold as the accent for
+ * actions, blue for data/secondary and ember for caution. Gold is darkened here so body-level
+ * gold text still clears AA on white.
+ */
 private val LightColors = lightColorScheme(
-    primary = Teal600,
+    primary = Gold700,
     onPrimary = Color.White,
-    primaryContainer = Teal100,
-    onPrimaryContainer = Teal900,
-    inversePrimary = Teal300,
+    primaryContainer = Gold100,
+    onPrimaryContainer = Gold900,
+    inversePrimary = Gold300,
 
-    secondary = Sage600,
+    secondary = Blue700,
     onSecondary = Color.White,
-    secondaryContainer = Sage200,
-    onSecondaryContainer = Color(0xFF172418),
+    secondaryContainer = Blue100,
+    onSecondaryContainer = Blue900,
 
-    tertiary = Ochre700,
+    tertiary = Ember700,
     onTertiary = Color.White,
-    tertiaryContainer = Ochre100,
-    onTertiaryContainer = Color(0xFF2B1E00),
+    tertiaryContainer = Ember100,
+    onTertiaryContainer = Color(0xFF3D1200),
 
-    background = Mist50,
-    onBackground = Ink900,
+    background = Daylight50,
+    onBackground = Graphite900,
     surface = Paper,
-    onSurface = Ink900,
-    surfaceVariant = Mist200,
-    onSurfaceVariant = Slate600,
-    surfaceTint = Teal600,
+    onSurface = Graphite900,
+    surfaceVariant = Daylight200,
+    onSurfaceVariant = Graphite700,
+    surfaceTint = Gold600,
     surfaceContainerLowest = Color.White,
-    surfaceContainerLow = Color(0xFFFAFCFA),
-    surfaceContainer = Mist100,
-    surfaceContainerHigh = Mist200,
-    surfaceContainerHighest = Mist300,
-    inverseSurface = Ink700,
-    inverseOnSurface = Mist100,
+    surfaceContainerLow = Color(0xFFFBFCFD),
+    surfaceContainer = Daylight100,
+    surfaceContainerHigh = Daylight200,
+    surfaceContainerHighest = Daylight300,
+    inverseSurface = Ink800,
+    inverseOnSurface = Daylight100,
 
-    outline = Mist500,
-    outlineVariant = Mist300,
+    outline = Daylight400,
+    outlineVariant = Daylight300,
 
     error = ErrorLight,
     onError = Color.White,
@@ -55,57 +61,61 @@ private val LightColors = lightColorScheme(
     onErrorContainer = Color(0xFF410E0B),
 )
 
+/**
+ * Dark scheme — the logo's native environment: obsidian surfaces with gold signal, electric
+ * blue data accents and ember alerts. Kept deliberately deep (near #050709) so the map and the
+ * luminous gold read like the icon.
+ */
 private val DarkColors = darkColorScheme(
-    primary = Teal300,
-    onPrimary = Teal900,
-    primaryContainer = Teal700,
-    onPrimaryContainer = Teal100,
-    inversePrimary = Teal600,
+    primary = Gold300,
+    onPrimary = Gold900,
+    primaryContainer = Gold800,
+    onPrimaryContainer = Gold100,
+    inversePrimary = Gold600,
 
-    secondary = Sage300,
-    onSecondary = Color(0xFF1B291C),
-    secondaryContainer = Color(0xFF33462F),
-    onSecondaryContainer = Sage200,
+    secondary = Blue300,
+    onSecondary = Blue900,
+    secondaryContainer = Blue800,
+    onSecondaryContainer = Blue100,
 
-    tertiary = Ochre300,
-    onTertiary = Color(0xFF3A2A00),
-    tertiaryContainer = Color(0xFF584200),
-    onTertiaryContainer = Ochre100,
+    tertiary = Ember300,
+    onTertiary = Color(0xFF3D1200),
+    tertiaryContainer = Ember700,
+    onTertiaryContainer = Ember100,
 
-    background = Night900,
-    onBackground = Night100,
-    surface = Night850,
-    onSurface = Night100,
-    surfaceVariant = Night700,
-    onSurfaceVariant = Night200,
-    surfaceTint = Teal300,
-    surfaceContainerLowest = Night950,
-    surfaceContainerLow = Night900,
-    surfaceContainer = Night800,
-    surfaceContainerHigh = Night750,
-    surfaceContainerHighest = Night700,
-    inverseSurface = Night100,
-    inverseOnSurface = Night800,
+    background = Ink950,
+    onBackground = Slate200,
+    surface = Ink900,
+    onSurface = Slate200,
+    surfaceVariant = Ink700,
+    onSurfaceVariant = Slate300,
+    surfaceTint = Gold300,
+    surfaceContainerLowest = Obsidian,
+    surfaceContainerLow = Ink950,
+    surfaceContainer = Ink850,
+    surfaceContainerHigh = Ink800,
+    surfaceContainerHighest = Ink750,
+    inverseSurface = Slate200,
+    inverseOnSurface = Ink900,
 
-    outline = Night600,
-    outlineVariant = Night700,
+    outline = Ink500,
+    outlineVariant = Ink600,
 
     error = ErrorDark,
-    onError = Color(0xFF601410),
+    onError = Color(0xFF690005),
     errorContainer = ErrorContainerDark,
-    onErrorContainer = Color(0xFFF9DEDC),
+    onErrorContainer = Color(0xFFFFDAD6),
 )
 
-/** Generous, softly rounded corners — reads as a modern consumer product rather than a tool. */
 val SubsurfShapes = Shapes(
-    extraSmall = androidx.compose.foundation.shape.RoundedCornerShape(6.dp),
-    small = androidx.compose.foundation.shape.RoundedCornerShape(10.dp),
-    medium = androidx.compose.foundation.shape.RoundedCornerShape(16.dp),
-    large = androidx.compose.foundation.shape.RoundedCornerShape(22.dp),
-    extraLarge = androidx.compose.foundation.shape.RoundedCornerShape(28.dp),
+    extraSmall = RoundedCornerShape(6.dp),
+    small = RoundedCornerShape(10.dp),
+    medium = RoundedCornerShape(16.dp),
+    large = RoundedCornerShape(22.dp),
+    extraLarge = RoundedCornerShape(30.dp),
 )
 
-/** Extra design tokens that are not part of [MaterialTheme] (spacing / elevation scale). */
+/** Spacing / sizing tokens that are not part of [MaterialTheme]. */
 object Dims {
     val xs = 4.dp
     val s = 8.dp
@@ -113,9 +123,6 @@ object Dims {
     val l = 16.dp
     val xl = 20.dp
     val xxl = 28.dp
-
-    /** Height of the floating sheet handle area. */
-    val handle = 26.dp
     val minTouch = 48.dp
 }
 
@@ -130,7 +137,7 @@ fun SubsurfTheme(
         val context = LocalContext.current
         SideEffect {
             val window = (context as? Activity)?.window ?: return@SideEffect
-            // Edge-to-edge: the system bars stay transparent and their icons flip with the theme.
+            // Edge-to-edge: bars stay transparent, icon colour follows the scheme.
             WindowCompat.getInsetsController(window, view).apply {
                 isAppearanceLightStatusBars = !darkTheme
                 isAppearanceLightNavigationBars = !darkTheme

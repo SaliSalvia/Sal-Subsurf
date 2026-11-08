@@ -1,11 +1,18 @@
 package com.salsalvia.subsurf.ui
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.animateContentSize
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -43,8 +50,11 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -62,9 +72,18 @@ import com.salsalvia.subsurf.ui.icons.SubsurfIcons
 import com.salsalvia.subsurf.ui.theme.Dims
 
 /**
- * The whole app flows from this screen: sketch a ring on real cartography, watch the live
- * area/vertex counters, then run the analysis. Everything overlays the map so the map itself
- * gets as much room as possible.
+ * Exploration mode of the home screen.
+ *
+ * [EXPLORE] — free pan/zoom over the globe, exactly like Google Earth: nothing is being traced,
+ * the map owns all gestures. [TRACE] — the camera is locked and each tap drops a vertex of the
+ * dashed exploration boundary.
+ */
+private enum class MapMode { EXPLORE, TRACE }
+
+/**
+ * Home screen. The map *is* the app: it opens on the globe, the user flies to a location, locks
+ * it, traces the exact boundary with a red/black dashed line, and then starts the data
+ * collection run (validation → satellite catalog → terrain indicators).
  */
 @Composable
 fun MapScreen(
@@ -80,64 +99,73 @@ fun MapScreen(
     var mapReady by remember { mutableStateOf(false) }
     var fitRequest by remember { mutableIntStateOf(0) }
     var controller by remember { mutableStateOf<RegionMapController?>(null) }
+    var mode by remember { mutableStateOf(MapMode.EXPLORE) }
+    var cameraMoved by remember { mutableStateOf(false) }
+    var pinned by remember { mutableStateOf(false) }
 
+    val tracing = mode == MapMode.TRACE
     val vertexCount = state.vertices.size
     val canAnalyze = vertexCount >= GeoMath.MIN_VERTICES && !state.busy
     val areaText = remember(state.vertices) { vm.formatArea(state.vertices) }
 
     val latestTap = rememberUpdatedState(newValue = { lat: Double, lon: Double ->
-        if (vertexCount < GeoMath.MAX_VERTICES) {
-            haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+        // In explore mode the map is for navigation only; the boundary is drawn after lock.
+        if (mode == MapMode.TRACE) {
+            if (vertexCount < GeoMath.MAX_VERTICES) {
+                haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+            }
+            vm.addVertex(lat, lon)
         }
-        vm.addVertex(lat, lon)
     })
 
-    // Keep the ring inside the visible area between the floating header and the action sheet.
+    // Keep the traced ring inside the visible band between the header and the action sheet.
     val density = androidx.compose.ui.platform.LocalDensity.current
-    LaunchedEffect(controller, density) {
-        val top = with(density) { (statusBars + 128.dp).toPx() }.toInt()
-        val bottom = with(density) { (contentPadding.calculateBottomPadding() + 168.dp).toPx() }.toInt()
+    LaunchedEffect(controller, density, tracing) {
+        val top = with(density) { (statusBars + 132.dp).toPx() }.toInt()
+        val bottom = with(density) {
+            (contentPadding.calculateBottomPadding() + if (tracing) 210.dp else 150.dp).toPx()
+        }.toInt()
         controller?.setViewInset(top = top, bottom = bottom)
     }
 
-    Box(Modifier.fillMaxSize()) {
+    Box(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
         RegionMapView(
             vertices = state.vertices,
             onMapTap = { lat, lon -> latestTap.value(lat, lon) },
             modifier = Modifier.fillMaxSize(),
             dark = dark,
             fitRequest = fitRequest,
-            onController = { controller = it },
+            onController = { c ->
+                controller = c
+                c.onCameraMoved = { cameraMoved = true }
+            },
             onLoadState = { mapReady = true },
         )
 
-        /***  Top overlay: brand header + live counters  ***/
+        // --- Top bar: brand, mode chip, globe/fit actions ------------------- //
         Column(
             Modifier
                 .fillMaxWidth()
-                .padding(top = statusBars + 8.dp, start = Dims.l, end = Dims.l),
+                .padding(top = statusBars + Dims.s, start = Dims.m, end = Dims.m),
             verticalArrangement = Arrangement.spacedBy(Dims.s),
         ) {
-            MapHeader(
+            TopMapBar(
+                tracing = tracing,
                 vertexCount = vertexCount,
-                areaText = if (vertexCount >= GeoMath.MIN_VERTICES) areaText else null,
-                perimeterText = if (vertexCount >= GeoMath.MIN_VERTICES) {
-                    stringResource(
-                        R.string.perimeter_format,
-                        formatNumber(GeoMath.perimeterM(state.vertices), 0),
-                    )
-                } else null,
+                onGlobe = { controller?.showGlobe() },
+                onFit = { fitRequest++ },
+                hasSketch = vertexCount > 0,
             )
             AnimatedVisibility(
-                visible = vertexCount == 0,
-                enter = fadeIn(tween(200)) + slideInVertically(tween(200)) { -it / 3 },
-                exit = fadeOut(tween(120)),
+                visible = polygonReady(vertexCount),
+                enter = fadeIn(tween(200)),
+                exit = fadeOut(tween(140)),
             ) {
-                MapHint()
+                SketchReadout(areaText, GeoMath.perimeterM(state.vertices))
             }
         }
 
-        /***  Right-hand floating map controls  ***/
+        // --- Right-hand map controls --------------------------------------- //
         Column(
             Modifier
                 .align(Alignment.CenterEnd)
@@ -149,185 +177,188 @@ fun MapScreen(
                 onZoomIn = { controller?.zoomBy(1.0) },
                 onZoomOut = { controller?.zoomBy(-1.0) },
             )
-            if (vertexCount > 0) {
-                FloatingMapButton(
-                    icon = SubsurfIcons.Fit,
-                    label = stringResource(R.string.map_fit),
-                    onClick = { fitRequest++ },
-                )
-            }
+            // Recenter affordance, mirroring Google Maps' "my location" button position.
+            MapCircleButton(
+                icon = SubsurfIcons.Compass,
+                label = stringResource(R.string.map_recenter),
+                onClick = { fitRequest++ },
+            )
+        }
+
+        // --- Tracing crosshair hint ---------------------------------------- //
+        AnimatedVisibility(
+            visible = tracing && vertexCount == 0,
+            modifier = Modifier.align(Alignment.Center),
+            enter = fadeIn(tween(220)),
+            exit = fadeOut(tween(140)),
+        ) {
+            TracingReticle()
         }
 
         MapLoadingOverlay(visible = !mapReady)
 
-        /***  Bottom sheet: sketching state + primary action  ***/
-        SketchSheet(
+        // --- Bottom control dock ------------------------------------------- //
+        BottomDock(
             modifier = Modifier.align(Alignment.BottomCenter),
+            tracing = tracing,
             vertexCount = vertexCount,
             busy = state.busy,
             canAnalyze = canAnalyze,
             bottomInset = contentPadding.calculateBottomPadding(),
+            cameraMoved = cameraMoved,
+            onLock = {
+                haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                mode = if (tracing) MapMode.EXPLORE else MapMode.TRACE
+            },
             onUndo = { if (vertexCount > 0) vm.undo() },
-            onClear = { vm.clear() },
+            onClear = {
+                vm.clear()
+                mode = MapMode.EXPLORE
+            },
             onAnalyze = {
                 haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                pinned = true
                 vm.analyze()
             },
+        )
+
+        // --- Full-screen collection overlay while the run is in flight ------ //
+        CollectionOverlay(
+            visible = state.busy || (pinned && state.catalog == null),
+            vertices = vertexCount,
         )
     }
 
     // Jump to the Results tab as soon as the server validation arrives.
     LaunchedEffect(state.validation) {
-        if (state.validation != null && !state.busy) onAnalyzed()
+        if (state.validation != null && !state.busy) {
+            pinned = false
+            onAnalyzed()
+        }
     }
 }
 
+private fun polygonReady(vertexCount: Int) = vertexCount >= GeoMath.MIN_VERTICES
+
+// --------------------------------------------------------------------------- //
+// Top bar
 // --------------------------------------------------------------------------- //
 
 @Composable
-private fun MapHeader(vertexCount: Int, areaText: String?, perimeterText: String?) {
-    Column(verticalArrangement = Arrangement.spacedBy(Dims.s)) {
+private fun TopMapBar(
+    tracing: Boolean,
+    vertexCount: Int,
+    onGlobe: () -> Unit,
+    onFit: () -> Unit,
+    hasSketch: Boolean,
+) {
+    Row(
+        Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(Dims.s),
+    ) {
+        // Brand plate — the app logo, as required by the design brief.
         Row(
-            Modifier.fillMaxWidth(),
+            Modifier
+                .clip(CircleShape)
+                .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.95f))
+                .border(1.dp, MaterialTheme.colorScheme.outlineVariant, CircleShape)
+                .padding(start = 4.dp, end = 12.dp, top = 4.dp, bottom = 4.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(Dims.s),
         ) {
-            Row(
-                Modifier
-                    .clip(CircleShape)
-                    .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.96f))
-                    .padding(horizontal = 6.dp, vertical = 6.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(Dims.s),
-            ) {
-                BrandMarkSmall()
+            Image(
+                painter = painterResource(R.drawable.logo_brand),
+                contentDescription = null,
+                modifier = Modifier
+                    .size(32.dp)
+                    .clip(CircleShape),
+            )
+            Column {
+                Text(
+                    stringResource(R.string.app_name),
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.SemiBold,
+                )
                 Text(
                     stringResource(R.string.map_title),
-                    style = MaterialTheme.typography.titleSmall,
-                    modifier = Modifier.padding(end = 6.dp),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
-            Spacer(Modifier.weight(1f))
-            Pill(
-                text = stringResource(R.string.vertices_short, vertexCount, GeoMath.MAX_VERTICES),
-                color = if (vertexCount >= GeoMath.MIN_VERTICES) {
-                    MaterialTheme.colorScheme.primary
-                } else {
-                    MaterialTheme.colorScheme.onSurfaceVariant
-                },
-                icon = SubsurfIcons.Region,
+        }
+        Spacer(Modifier.weight(1f))
+        MapCircleButton(
+            icon = SubsurfIcons.Globe,
+            label = stringResource(R.string.map_globe),
+            onClick = onGlobe,
+        )
+        if (hasSketch) {
+            MapCircleButton(
+                icon = SubsurfIcons.Fit,
+                label = stringResource(R.string.map_fit),
+                onClick = onFit,
             )
         }
-
-        // Live measurements appear the moment the ring becomes a polygon.
-        AnimatedVisibility(
-            visible = areaText != null,
-            enter = fadeIn(tween(180)),
-            exit = fadeOut(tween(120)),
-        ) {
-            Row(
-                Modifier
-                    .clip(RoundedCornerShape(18.dp))
-                    .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.96f))
-                    .border(
-                        1.dp,
-                        MaterialTheme.colorScheme.outlineVariant,
-                        RoundedCornerShape(18.dp),
-                    )
-                    .padding(horizontal = Dims.l, vertical = Dims.m),
-                horizontalArrangement = Arrangement.spacedBy(Dims.l),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Column {
-                    Text(
-                        stringResource(R.string.metric_area),
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                    Text(
-                        areaText ?: "",
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.primary,
-                    )
-                }
-                Box(
-                    Modifier
-                        .width(1.dp)
-                        .height(28.dp)
-                        .background(MaterialTheme.colorScheme.outlineVariant),
-                )
-                Column {
-                    Text(
-                        stringResource(R.string.metric_perimeter),
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                    Text(
-                        perimeterText ?: "",
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.SemiBold,
-                    )
-                }
-            }
-        }
     }
 }
 
 @Composable
-private fun BrandMarkSmall() {
-    Box(
-        Modifier
-            .size(30.dp)
-            .clip(CircleShape)
-            .background(MaterialTheme.colorScheme.primary),
-        contentAlignment = Alignment.Center,
-    ) {
-        Icon(
-            SubsurfIcons.Layers,
-            contentDescription = null,
-            tint = MaterialTheme.colorScheme.onPrimary,
-            modifier = Modifier.size(17.dp),
-        )
-    }
-}
-
-@Composable
-private fun MapHint() {
+private fun SketchReadout(areaText: String, perimeterM: Double) {
     Row(
         Modifier
             .clip(RoundedCornerShape(18.dp))
-            .background(MaterialTheme.colorScheme.inverseSurface.copy(alpha = 0.92f))
+            .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.95f))
+            .border(1.dp, MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(18.dp))
             .padding(horizontal = Dims.l, vertical = Dims.m),
+        horizontalArrangement = Arrangement.spacedBy(Dims.l),
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(Dims.m),
     ) {
-        Icon(
-            SubsurfIcons.Region,
-            contentDescription = null,
-            tint = MaterialTheme.colorScheme.inverseOnSurface,
-            modifier = Modifier.size(18.dp),
+        Column {
+            Text(
+                stringResource(R.string.metric_area),
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Text(
+                areaText,
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.primary,
+            )
+        }
+        Box(
+            Modifier
+                .width(1.dp)
+                .height(28.dp)
+                .background(MaterialTheme.colorScheme.outlineVariant),
         )
-        Text(
-            stringResource(R.string.tap_to_add_vertex),
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.inverseOnSurface,
-            modifier = Modifier.weight(1f, fill = false),
-        )
+        Column {
+            Text(
+                stringResource(R.string.metric_perimeter),
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Text(
+                stringResource(R.string.perimeter_format, formatNumber(perimeterM, 0)),
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.SemiBold,
+            )
+        }
     }
 }
 
 @Composable
-private fun FloatingMapButton(
+private fun MapCircleButton(
     icon: androidx.compose.ui.graphics.vector.ImageVector,
     label: String,
     onClick: () -> Unit,
 ) {
     Box(
         Modifier
-            .size(44.dp)
+            .size(46.dp)
             .clip(CircleShape)
-            .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.94f))
+            .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.95f))
             .border(1.dp, MaterialTheme.colorScheme.outlineVariant, CircleShape)
             .clickable(onClick = onClick),
         contentAlignment = Alignment.Center,
@@ -335,24 +366,75 @@ private fun FloatingMapButton(
         Icon(
             icon,
             contentDescription = label,
-            tint = MaterialTheme.colorScheme.primary,
+            tint = MaterialTheme.colorScheme.onSurface,
             modifier = Modifier.size(20.dp),
         )
     }
 }
 
-/**
- * Bottom action sheet. Collapses to a single line while the user is placing their first
- * vertices and expands with live measurements once a real ring exists, so the map stays
- * uncluttered in the state that matters most.
- */
+// --------------------------------------------------------------------------- //
+// Tracing reticle: a pulsing crosshair that tells the user taps now drop points
+// --------------------------------------------------------------------------- //
+
 @Composable
-private fun SketchSheet(
+private fun TracingReticle() {
+    val pulse = rememberInfiniteTransition(label = "reticle")
+    val ring by pulse.animateFloat(
+        initialValue = 0.72f,
+        targetValue = 1f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(1400),
+            repeatMode = RepeatMode.Reverse,
+        ),
+        label = "ring",
+    )
+    Box(
+        Modifier
+            .size(120.dp)
+            .alpha(ring),
+        contentAlignment = Alignment.Center,
+    ) {
+        Box(
+            Modifier
+                .size(96.dp)
+                .clip(CircleShape)
+                .border(1.5.dp, MaterialTheme.colorScheme.tertiary.copy(alpha = 0.85f), CircleShape),
+        )
+        Box(
+            Modifier
+                .width(46.dp)
+                .height(1.5.dp)
+                .background(MaterialTheme.colorScheme.tertiary),
+        )
+        Box(
+            Modifier
+                .width(1.5.dp)
+                .height(46.dp)
+                .background(MaterialTheme.colorScheme.tertiary),
+        )
+        Box(
+            Modifier
+                .size(6.dp)
+                .clip(CircleShape)
+                .background(MaterialTheme.colorScheme.tertiary),
+        )
+    }
+}
+
+// --------------------------------------------------------------------------- //
+// Bottom dock: mode switching and the primary action
+// --------------------------------------------------------------------------- //
+
+@Composable
+private fun BottomDock(
     modifier: Modifier = Modifier,
+    tracing: Boolean,
     vertexCount: Int,
     busy: Boolean,
     canAnalyze: Boolean,
     bottomInset: androidx.compose.ui.unit.Dp,
+    cameraMoved: Boolean,
+    onLock: () -> Unit,
     onUndo: () -> Unit,
     onClear: () -> Unit,
     onAnalyze: () -> Unit,
@@ -360,67 +442,104 @@ private fun SketchSheet(
     Column(
         modifier
             .fillMaxWidth()
-            .padding(horizontal = Dims.m, vertical = Dims.m)
-            .padding(bottom = bottomInset)
-            .clip(MaterialTheme.shapes.extraLarge)
-            .background(MaterialTheme.colorScheme.surface)
-            .border(1.dp, MaterialTheme.colorScheme.outlineVariant, MaterialTheme.shapes.extraLarge)
-            .padding(horizontal = Dims.l, vertical = Dims.l)
-            .animateContentSize(tween(260)),
-        verticalArrangement = Arrangement.spacedBy(Dims.m),
+            .padding(horizontal = Dims.m)
+            .padding(bottom = bottomInset + Dims.m)
+            .animateContentSize(tween(240)),
+        verticalArrangement = Arrangement.spacedBy(Dims.s),
     ) {
-        Row(
-            Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(Dims.s),
-        ) {
-            Column(Modifier.weight(1f)) {
-                Text(
-                    stringResource(
-                        if (vertexCount == 0) R.string.sheet_title_empty else R.string.sheet_title,
-                    ),
-                    style = MaterialTheme.typography.titleSmall,
-                )
-                Text(
-                    if (vertexCount < GeoMath.MIN_VERTICES) {
-                        stringResource(R.string.sheet_sub_need_more, GeoMath.MIN_VERTICES - vertexCount)
-                    } else {
-                        stringResource(R.string.sheet_sub_ready)
+        // Hint line changes with the mode so the next gesture is always obvious.
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Center) {
+            Pill(
+                text = stringResource(
+                    when {
+                        tracing && vertexCount == 0 -> R.string.hint_trace_first
+                        tracing -> R.string.hint_trace_more
+                        vertexCount > 0 -> R.string.hint_locked_ready
+                        else -> R.string.hint_explore
                     },
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
-            SheetStepDots(vertexCount)
+                ),
+                color = if (tracing) MaterialTheme.colorScheme.tertiary
+                else MaterialTheme.colorScheme.primary,
+                icon = if (tracing) SubsurfIcons.Region else SubsurfIcons.Globe,
+            )
         }
 
-        Row(
-            Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(Dims.s),
-            verticalAlignment = Alignment.CenterVertically,
+        Column(
+            Modifier
+                .fillMaxWidth()
+                .clip(MaterialTheme.shapes.extraLarge)
+                .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.97f))
+                .border(
+                    1.dp,
+                    MaterialTheme.colorScheme.outlineVariant,
+                    MaterialTheme.shapes.extraLarge,
+                )
+                .padding(Dims.l),
+            verticalArrangement = Arrangement.spacedBy(Dims.m),
         ) {
-            SecondaryAction(
-                icon = SubsurfIcons.Undo,
-                label = stringResource(R.string.action_undo),
-                enabled = vertexCount > 0 && !busy,
-                onClick = onUndo,
-                modifier = Modifier.weight(1f),
-            )
-            SecondaryAction(
-                icon = SubsurfIcons.Minus,
-                label = stringResource(R.string.action_clear),
-                enabled = vertexCount > 0 && !busy,
-                onClick = onClear,
-                modifier = Modifier.weight(1f),
-            )
+            Row(
+                Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(Dims.s),
+            ) {
+                Column(Modifier.weight(1f)) {
+                    Text(
+                        stringResource(
+                            when {
+                                tracing -> R.string.sheet_title_tracing
+                                vertexCount > 0 -> R.string.sheet_title_locked
+                                else -> R.string.sheet_title_empty
+                            },
+                        ),
+                        style = MaterialTheme.typography.titleSmall,
+                    )
+                    Text(
+                        stringResource(
+                            if (tracing) R.string.sheet_sub_tracing
+                            else R.string.sheet_sub_explore,
+                        ),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+                SheetStepDots(vertexCount)
+            }
+
+            Row(
+                Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(Dims.s),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                // Lock / unlock — the mode switch that starts the tracing.
+                LockButton(
+                    tracing = tracing,
+                    enabled = !busy,
+                    onClick = onLock,
+                    modifier = Modifier.weight(1f),
+                )
+                DockAction(
+                    icon = SubsurfIcons.Undo,
+                    label = stringResource(R.string.action_undo),
+                    enabled = vertexCount > 0 && !busy,
+                    onClick = onUndo,
+                    modifier = Modifier.weight(1f),
+                )
+                DockAction(
+                    icon = SubsurfIcons.Minus,
+                    label = stringResource(R.string.action_clear),
+                    enabled = vertexCount > 0 && !busy,
+                    onClick = onClear,
+                    modifier = Modifier.weight(1f),
+                )
+            }
+
             Button(
                 onClick = onAnalyze,
                 enabled = canAnalyze,
                 modifier = Modifier
-                    .weight(1.45f)
-                    .height(50.dp),
-                shape = RoundedCornerShape(16.dp),
-                contentPadding = PaddingValues(horizontal = 10.dp),
+                    .fillMaxWidth()
+                    .height(52.dp),
+                shape = RoundedCornerShape(18.dp),
                 colors = ButtonDefaults.buttonColors(
                     containerColor = MaterialTheme.colorScheme.primary,
                     contentColor = MaterialTheme.colorScheme.onPrimary,
@@ -437,27 +556,102 @@ private fun SketchSheet(
                     Icon(
                         SubsurfIcons.Sparkle,
                         contentDescription = null,
-                        modifier = Modifier.size(16.dp),
+                        modifier = Modifier.size(17.dp),
                     )
-                    Spacer(Modifier.width(6.dp))
+                    Spacer(Modifier.width(8.dp))
                 }
                 Text(
-                    stringResource(if (busy) R.string.analyzing_short else R.string.action_analyze),
+                    stringResource(if (busy) R.string.analyzing_short else R.string.action_start_run),
                     style = MaterialTheme.typography.labelLarge,
                     maxLines = 1,
                 )
             }
-        }
 
-        if (vertexCount in 1 until GeoMath.MIN_VERTICES) {
-            Text(
-                stringResource(R.string.need_three_vertices),
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.tertiary,
-                textAlign = TextAlign.Center,
-                modifier = Modifier.fillMaxWidth(),
-            )
+            if (tracing && vertexCount in 1 until GeoMath.MIN_VERTICES) {
+                Text(
+                    stringResource(R.string.need_three_vertices),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.tertiary,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            }
+            if (!tracing && vertexCount == 0 && !cameraMoved) {
+                Text(
+                    stringResource(R.string.hint_pan_zoom),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            }
         }
+    }
+}
+
+/** Lock/unlock control — the "start tracing this area" affordance. */
+@Composable
+private fun LockButton(
+    tracing: Boolean,
+    enabled: Boolean,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val container by animateColorAsState(
+        targetValue = if (tracing) MaterialTheme.colorScheme.tertiary
+        else MaterialTheme.colorScheme.surfaceContainerHigh,
+        animationSpec = tween(220),
+        label = "lockBg",
+    )
+    val content = if (tracing) MaterialTheme.colorScheme.onTertiary
+    else MaterialTheme.colorScheme.onSurface
+    Column(
+        modifier
+            .height(56.dp)
+            .clip(RoundedCornerShape(16.dp))
+            .background(container)
+            .clickable(enabled = enabled, onClick = onClick),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center,
+    ) {
+        Icon(
+            if (tracing) SubsurfIcons.Unlock else SubsurfIcons.Lock,
+            contentDescription = null,
+            tint = content,
+            modifier = Modifier.size(18.dp),
+        )
+        Spacer(Modifier.height(2.dp))
+        Text(
+            stringResource(if (tracing) R.string.action_unlock else R.string.action_lock),
+            style = MaterialTheme.typography.labelSmall,
+            color = content,
+            maxLines = 1,
+        )
+    }
+}
+
+@Composable
+private fun DockAction(
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    label: String,
+    enabled: Boolean,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val tint = if (enabled) MaterialTheme.colorScheme.onSurface
+    else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.45f)
+    Column(
+        modifier
+            .height(56.dp)
+            .clip(RoundedCornerShape(16.dp))
+            .background(MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.7f))
+            .clickable(enabled = enabled, onClick = onClick),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center,
+    ) {
+        Icon(icon, contentDescription = null, tint = tint, modifier = Modifier.size(17.dp))
+        Spacer(Modifier.height(2.dp))
+        Text(label, style = MaterialTheme.typography.labelSmall, color = tint, maxLines = 1)
     }
 }
 
@@ -471,46 +665,113 @@ private fun SheetStepDots(vertexCount: Int) {
                     .size(width = if (filled) 12.dp else 5.dp, height = 5.dp)
                     .clip(CircleShape)
                     .background(
-                        when {
-                            filled -> MaterialTheme.colorScheme.primary
-                            else -> MaterialTheme.colorScheme.outlineVariant
-                        },
+                        if (filled) MaterialTheme.colorScheme.primary
+                        else MaterialTheme.colorScheme.outlineVariant,
                     ),
             )
         }
     }
 }
 
+// --------------------------------------------------------------------------- //
+// Collection overlay — the "data gathering" state
+// --------------------------------------------------------------------------- //
+
 @Composable
-private fun SecondaryAction(
-    icon: androidx.compose.ui.graphics.vector.ImageVector,
-    label: String,
-    enabled: Boolean,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier,
-) {
-    val tint = if (enabled) MaterialTheme.colorScheme.onSurface
-    else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.45f)
-    Column(
-        modifier
-            .height(50.dp)
-            .clip(RoundedCornerShape(16.dp))
-            .background(MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.7f))
-            .clickable(enabled = enabled, onClick = onClick),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center,
+private fun CollectionOverlay(visible: Boolean, vertices: Int) {
+    AnimatedVisibility(
+        visible = visible,
+        enter = fadeIn(tween(220)) + slideInVertically(tween(240)) { it / 6 },
+        exit = fadeOut(tween(160)) + slideOutVertically(tween(160)) { it / 6 },
     ) {
-        Icon(icon, contentDescription = null, tint = tint, modifier = Modifier.size(17.dp))
-        Spacer(Modifier.height(2.dp))
+        Box(
+            Modifier
+                .fillMaxSize()
+                .background(
+                    Brush.verticalGradient(
+                        listOf(
+                            MaterialTheme.colorScheme.background.copy(alpha = 0.86f),
+                            MaterialTheme.colorScheme.background.copy(alpha = 0.96f),
+                        ),
+                    ),
+                ),
+            contentAlignment = Alignment.Center,
+        ) {
+            Column(
+                Modifier
+                    .padding(horizontal = Dims.xxl)
+                    .clip(MaterialTheme.shapes.extraLarge)
+                    .background(MaterialTheme.colorScheme.surface)
+                    .border(
+                        1.dp,
+                        MaterialTheme.colorScheme.outlineVariant,
+                        MaterialTheme.shapes.extraLarge,
+                    )
+                    .padding(Dims.xl),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(Dims.m),
+            ) {
+                Box(Modifier.size(74.dp), contentAlignment = Alignment.Center) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.fillMaxSize(),
+                        strokeWidth = 3.dp,
+                        trackColor = MaterialTheme.colorScheme.surfaceContainerHighest,
+                    )
+                    Icon(
+                        SubsurfIcons.Satellite,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(28.dp),
+                    )
+                }
+                Text(
+                    stringResource(R.string.collect_title),
+                    style = MaterialTheme.typography.titleMedium,
+                    textAlign = TextAlign.Center,
+                )
+                Text(
+                    stringResource(R.string.collect_sub, vertices),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    textAlign = TextAlign.Center,
+                )
+                Column(
+                    Modifier.fillMaxWidth().padding(top = Dims.xs),
+                    verticalArrangement = Arrangement.spacedBy(6.dp),
+                ) {
+                    CollectStep(stringResource(R.string.collect_step_validate), done = true)
+                    CollectStep(stringResource(R.string.collect_step_catalog), done = false)
+                    CollectStep(stringResource(R.string.collect_step_terrain), done = false)
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun CollectStep(label: String, done: Boolean) {
+    Row(
+        Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(Dims.s),
+    ) {
+        Box(
+            Modifier
+                .size(6.dp)
+                .clip(CircleShape)
+                .background(
+                    if (done) MaterialTheme.colorScheme.primary
+                    else MaterialTheme.colorScheme.outlineVariant,
+                ),
+        )
         Text(
             label,
-            style = MaterialTheme.typography.labelSmall,
-            color = tint,
-            maxLines = 1,
+            style = MaterialTheme.typography.bodySmall,
+            color = if (done) MaterialTheme.colorScheme.onSurface
+            else MaterialTheme.colorScheme.onSurfaceVariant,
         )
     }
 }
 
 internal fun formatNumber(value: Double, digits: Int): String =
     String.format(java.util.Locale.US, "%.${digits}f", value)
-

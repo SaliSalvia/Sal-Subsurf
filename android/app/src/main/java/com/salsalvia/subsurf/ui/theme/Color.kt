@@ -3,64 +3,69 @@ package com.salsalvia.subsurf.ui.theme
 import androidx.compose.ui.graphics.Color
 
 /**
- * Brand palette — "field instrument" teal: deep mineral green, mint signal accents and a warm
- * ochre used only for caution / emphasis. Values are hand-tuned so that every foreground /
- * background pair clears the WCAG AA contrast threshold (4.5:1 for body text).
+ * Palette derived from the product logo: a black obsidian field, molten gold as the primary
+ * signal, electric blue as the secondary and ember red/orange as the alert accent. The logo is
+ * luminous on black, so the dark theme is the "native" one; the light theme is a bright,
+ * daylight-mapping version of the same hues so the outdoor map use case stays readable.
  */
 
-// --- Brand core -------------------------------------------------------------- //
-val Teal900 = Color(0xFF00332B)
-val Teal800 = Color(0xFF0A4A3F)
-val Teal700 = Color(0xFF0B5D50)
-val Teal600 = Color(0xFF14705F)
-val Teal500 = Color(0xFF1E8A76)
-val Teal400 = Color(0xFF3FB39B)
-val Teal300 = Color(0xFF6FD7BE)
-val Teal200 = Color(0xFFA9EFDD)
-val Teal100 = Color(0xFFD3F7ED)
+// --- Gold (primary) -------------------------------------------------------- //
+val Gold900 = Color(0xFF3A2703)
+val Gold800 = Color(0xFF5C3E05)
+val Gold700 = Color(0xFF7C5507)
+val Gold600 = Color(0xFF9C6B09)
+val Gold500 = Color(0xFFC08A10)
+val Gold400 = Color(0xFFE0A81E)
+val Gold300 = Color(0xFFF5C542)
+val Gold200 = Color(0xFFFFDB7A)
+val Gold100 = Color(0xFFFFEDB8)
 
-val Sage600 = Color(0xFF4E6250)
-val Sage300 = Color(0xFFB6CDB4)
-val Sage200 = Color(0xFFD6E8D3)
+// --- Electric blue (secondary) --------------------------------------------- //
+val Blue900 = Color(0xFF04203A)
+val Blue800 = Color(0xFF063A63)
+val Blue700 = Color(0xFF07527F)
+val Blue600 = Color(0xFF0A6FA8)
+val Blue500 = Color(0xFF1491D6)
+val Blue400 = Color(0xFF35B4F2)
+val Blue300 = Color(0xFF6DD0FF)
+val Blue200 = Color(0xFFA9E5FF)
+val Blue100 = Color(0xFFD6F3FF)
 
-val Ochre700 = Color(0xFF8A6512)
-val Ochre500 = Color(0xFFC08A1E)
-val Ochre300 = Color(0xFFEDC46B)
-val Ochre100 = Color(0xFFF8E4B6)
+// --- Ember (tertiary / alert) ---------------------------------------------- //
+val Ember700 = Color(0xFF8C2A06)
+val Ember500 = Color(0xFFC2410C)
+val Ember300 = Color(0xFFFF8A50)
+val Ember100 = Color(0xFFFFD9C4)
 
-val Clay700 = Color(0xFF8A4B32)
+// --- Neutrals: obsidian ---------------------------------------------------- //
+val Obsidian = Color(0xFF050709)
+val Ink950 = Color(0xFF070B10)
+val Ink900 = Color(0xFF0A0F15)
+val Ink850 = Color(0xFF0E141B)
+val Ink800 = Color(0xFF121A22)
+val Ink750 = Color(0xFF161F28)
+val Ink700 = Color(0xFF1B252F)
+val Ink600 = Color(0xFF26323D)
+val Ink500 = Color(0xFF3A4854)
+val Slate400 = Color(0xFF8595A3)
+val Slate300 = Color(0xFFAEBCC8)
+val Slate200 = Color(0xFFD0DAE2)
 
-// --- Neutrals ---------------------------------------------------------------- //
-val Ink900 = Color(0xFF11171A)
-val Ink800 = Color(0xFF181F20)
-val Ink700 = Color(0xFF232B29)
+// --- Neutrals: daylight ---------------------------------------------------- //
 val Paper = Color(0xFFFFFFFF)
-val Mist50 = Color(0xFFF5F8F6)
-val Mist100 = Color(0xFFF0F5F2)
-val Mist200 = Color(0xFFEAF0ED)
-val Mist300 = Color(0xFFE2E9E5)
-val Mist400 = Color(0xFFD5DED9)
-val Mist500 = Color(0xFFC1CAC5)
-val Slate500 = Color(0xFF6C7671)
-val Slate600 = Color(0xFF4B5651)
-val Slate700 = Color(0xFF3A4440)
+val Daylight50 = Color(0xFFF6F8F9)
+val Daylight100 = Color(0xFFEFF3F6)
+val Daylight200 = Color(0xFFE7EDF1)
+val Daylight300 = Color(0xFFDCE4EA)
+val Daylight400 = Color(0xFFC9D4DC)
+val Graphite700 = Color(0xFF3B4650)
+val Graphite900 = Color(0xFF11171C)
 
-// --- Dark surfaces ----------------------------------------------------------- //
-val Night950 = Color(0xFF070B0A)
-val Night900 = Color(0xFF0B100F)
-val Night850 = Color(0xFF0F1615)
-val Night800 = Color(0xFF131B1A)
-val Night750 = Color(0xFF18211F)
-val Night700 = Color(0xFF1E2825)
-val Night600 = Color(0xFF2A3532)
-val Night400 = Color(0xFF85908A)
-val Night200 = Color(0xFFC3CDC7)
-val Night100 = Color(0xFFE3E8E5)
-
-// --- Semantic ---------------------------------------------------------------- //
+// --- Semantic -------------------------------------------------------------- //
 val ErrorLight = Color(0xFFB3261E)
-val ErrorDark = Color(0xFFF2B8B5)
+val ErrorDark = Color(0xFFFFB4AB)
 val ErrorContainerLight = Color(0xFFF9DEDC)
-val ErrorContainerDark = Color(0xFF8C1D18)
-val AmberLight = Color(0xFF8A6512)
-val AmberDark = Color(0xFFEDC46B)
+val ErrorContainerDark = Color(0xFF690005)
+
+/** Accent colours used by the map sketch (kept in sync with the raw ARGB ints in RegionMapView). */
+val Smoke = Color(0xFF6B7A88)
