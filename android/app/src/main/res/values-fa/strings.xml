@@ -129,4 +129,23 @@
     <string name="ok">باشه</string>
     <string name="disclaimer_title">فقط شاخص‌های سطحی</string>
     <string name="disclaimer">فقط شاخص‌های سطحی — نه مدرکی برای اهداف دفن‌شده.</string>
+    <!-- وضعیت‌های عملیاتی -->
+    <string name="error_no_host">سرور پیدا نشد (%1$s). نشانی API را در تنظیمات بررسی کنید.</string>
+    <string name="error_timeout">پاسخ سرور بیش از حد طول کشید. دوباره تلاش کنید یا نشانی API را بررسی کنید.</string>
+    <string name="error_unreachable">دسترسی به سرور ممکن نیست. آیا بک‌اند در حال اجرا و روی همان شبکه است؟</string>
+    <string name="error_network">مشکل شبکه — اتصال خود و نشانی API را بررسی کنید.</string>
+    <string name="run_failed_title">جمع‌آوری ناموفق بود</string>
+    <string name="action_retry">تلاش دوباره</string>
+    <string name="action_dismiss">بستن</string>
+    <string name="action_share_report">اشتراک گزارش</string>
+    <string name="action_copy_report">کپی خلاصه</string>
+    <string name="report_copied">خلاصهٔ گزارش کپی شد</string>
+    <string name="report_share_title">گزارش ساب‌سرفیس‌اکسپلورر</string>
+    <string name="report_no_products">در بازهٔ کنونی محصولی نیست</string>
+    <string name="offline_banner_title">بک‌اند در دسترس نیست</string>
+    <string name="offline_banner_body">بدون بک‌اندِ در دسترس فقط نقشه و بررسی محلی هندسه کار می‌کند. نشانی API را در تنظیمات وارد کنید.</string>
+    <string name="action_open_settings">رفتن به تنظیمات</string>
+    <string name="run_area_label">محدودهٔ قفل‌شده</string>
+    <string name="status_offline">آفلاین</string>
+    <string name="status_checking">در حال بررسی…</string>
 </resources>

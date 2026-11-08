@@ -129,4 +129,23 @@
     <string name="ok">OK</string>
     <string name="disclaimer_title">Surface indicators only</string>
     <string name="disclaimer">Surface indicators only — not evidence of buried targets.</string>
+    <!-- Operational states -->
+    <string name="error_no_host">Server not found (%1$s). Check the API address in Settings.</string>
+    <string name="error_timeout">The server took too long to answer. Try again, or check the API address.</string>
+    <string name="error_unreachable">Cannot reach the server. Is the backend running and on the same network?</string>
+    <string name="error_network">Network problem — check your connection and the API address.</string>
+    <string name="run_failed_title">Collection failed</string>
+    <string name="action_retry">Try again</string>
+    <string name="action_dismiss">Dismiss</string>
+    <string name="action_share_report">Share report</string>
+    <string name="action_copy_report">Copy summary</string>
+    <string name="report_copied">Report summary copied</string>
+    <string name="report_share_title">SubsurfaceExplorer report</string>
+    <string name="report_no_products">no products in the current window</string>
+    <string name="offline_banner_title">Backend not reachable</string>
+    <string name="offline_banner_body">Without a reachable backend only the map and the local geometry check are available. Set the API address in Settings.</string>
+    <string name="action_open_settings">Open settings</string>
+    <string name="run_area_label">Locked area</string>
+    <string name="status_offline">Offline</string>
+    <string name="status_checking">Checking…</string>
 </resources>

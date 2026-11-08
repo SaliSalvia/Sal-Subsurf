@@ -33,6 +33,10 @@ class MainActivity : ComponentActivity() {
                 ThemeMode.LIGHT -> false
                 ThemeMode.DARK -> true
             }
+            // Publish the resolved appearance so the map can choose its basemap, then render.
+            androidx.compose.runtime.LaunchedEffect(dark) { vm.applyResolvedTheme(dark) }
+            // One startup probe, so the map can show a "backend not reachable" hint.
+            androidx.compose.runtime.LaunchedEffect(Unit) { vm.probeBackend() }
             SubsurfTheme(darkTheme = dark) {
                 AppRoot(vm)
             }

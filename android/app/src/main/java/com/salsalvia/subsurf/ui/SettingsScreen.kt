@@ -100,15 +100,24 @@ fun SettingsScreen(
                     title = stringResource(R.string.settings_api_url),
                     icon = SubsurfIcons.Signal,
                     trailing = {
+                        // Live status: an explicit test result wins, otherwise the startup probe.
+                        val online = when (testResult) {
+                            is TestResult.Ok -> true
+                            is TestResult.Fail -> false
+                            null -> state.backendOnline
+                        }
                         Pill(
                             text = stringResource(
-                                if (testResult is TestResult.Ok) R.string.status_online
-                                else R.string.status_configurable,
+                                when (online) {
+                                    true -> R.string.status_online
+                                    false -> R.string.status_offline
+                                    null -> R.string.status_checking
+                                },
                             ),
-                            color = if (testResult is TestResult.Ok) {
-                                MaterialTheme.colorScheme.primary
-                            } else {
-                                MaterialTheme.colorScheme.onSurfaceVariant
+                            color = when (online) {
+                                true -> MaterialTheme.colorScheme.primary
+                                false -> MaterialTheme.colorScheme.error
+                                null -> MaterialTheme.colorScheme.onSurfaceVariant
                             },
                         )
                     },

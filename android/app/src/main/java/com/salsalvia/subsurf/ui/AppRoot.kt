@@ -67,6 +67,8 @@ fun AppRoot(vm: AppViewModel) {
     var tabIndex by rememberSaveable { mutableIntStateOf(0) }
     val tabs = Tab.entries
     val snackbar = remember { SnackbarHostState() }
+    val context = androidx.compose.ui.platform.LocalContext.current
+    var copiedNotice by remember { mutableStateOf(false) }
 
     // "Collect everything" orchestration: once the satellite catalog for the locked area has
     // arrived, the terrain indicators are fetched automatically so a single run produces the
@@ -83,6 +85,14 @@ fun AppRoot(vm: AppViewModel) {
     }
     LaunchedEffect(state.validation) {
         if (state.validation == null) terrainRequested = false
+    }
+
+    // Confirmation for "copy summary" (uses the same snackbar channel as errors).
+    LaunchedEffect(copiedNotice) {
+        if (copiedNotice) {
+            snackbar.showSnackbar(context.getString(R.string.report_copied))
+            copiedNotice = false
+        }
     }
 
     LaunchedEffect(state.message) {
@@ -133,12 +143,14 @@ fun AppRoot(vm: AppViewModel) {
                         state = state,
                         onAnalyzed = { tabIndex = Tab.RESULTS.ordinal },
                         contentPadding = padding,
+                        onOpenSettings = { tabIndex = Tab.SETTINGS.ordinal },
                     )
                     Tab.RESULTS -> ResultsScreen(
                         vm = vm,
                         state = state,
                         onGoToMap = { tabIndex = Tab.MAP.ordinal },
                         contentPadding = padding,
+                        onReportCopied = { copiedNotice = true },
                     )
                     Tab.SETTINGS -> SettingsScreen(vm = vm, state = state, contentPadding = padding)
                 }
