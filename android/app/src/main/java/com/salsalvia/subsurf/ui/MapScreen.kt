@@ -94,6 +94,8 @@ fun MapScreen(
     onAnalyzed: () -> Unit,
     contentPadding: PaddingValues = PaddingValues(),
     onOpenSettings: () -> Unit = {},
+    exitTraceSignal: Int = 0,
+    onTracingChanged: (Boolean) -> Unit = {},
 ) {
     val haptics = LocalHapticFeedback.current
     // Follow the user theme choice (resolved by the activity), not just the system setting.
@@ -123,6 +125,12 @@ fun MapScreen(
             vm.addVertex(lat, lon)
         }
     })
+
+    // The host can ask the map to leave trace mode (system back) without losing the sketch.
+    LaunchedEffect(exitTraceSignal) {
+        if (exitTraceSignal > 0 && mode == MapMode.TRACE) mode = MapMode.EXPLORE
+    }
+    LaunchedEffect(tracing) { onTracingChanged(tracing) }
 
     // A locked area freezes the camera: gestures off, taps become boundary vertices.
     LaunchedEffect(controller, tracing) {
@@ -268,7 +276,9 @@ fun MapScreen(
 
         // --- Full-screen collection overlay while the run is in flight ------ //
         CollectionOverlay(
-            visible = state.isCollecting || (pinned && state.catalog == null && state.runError == null),
+            // Only the blocking validate+catalog stage gets the full-screen treatment; the terrain
+            // step keeps running in the background on the Results screen.
+            visible = state.busy || (pinned && state.catalog == null && state.runError == null),
             vertices = vertexCount,
         )
     }

@@ -98,12 +98,17 @@ fun AppRoot(vm: AppViewModel) {
         }
     }
 
-    // Android back: from another tab return to the map; from the map ask before leaving.
+    // Android back: leave a sub-tab, then leave trace mode, and only then ask before exiting.
     var confirmExit by remember { mutableStateOf(false) }
+    var mapTracing by remember { mutableStateOf(false) }
+    var exitTraceSignal by remember { mutableIntStateOf(0) }
     BackHandler(enabled = tabIndex != 0) {
         tabIndex = 0
     }
-    BackHandler(enabled = tabIndex == 0 && !confirmExit) {
+    BackHandler(enabled = tabIndex == 0 && mapTracing) {
+        exitTraceSignal++
+    }
+    BackHandler(enabled = tabIndex == 0 && !mapTracing && !confirmExit) {
         confirmExit = true
     }
 
@@ -185,6 +190,8 @@ fun AppRoot(vm: AppViewModel) {
                         onAnalyzed = { tabIndex = Tab.RESULTS.ordinal },
                         contentPadding = padding,
                         onOpenSettings = { tabIndex = Tab.SETTINGS.ordinal },
+                        exitTraceSignal = exitTraceSignal,
+                        onTracingChanged = { mapTracing = it },
                     )
                     Tab.RESULTS -> ResultsScreen(
                         vm = vm,
