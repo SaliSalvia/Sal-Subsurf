@@ -73,18 +73,26 @@ fun AppRoot(vm: AppViewModel) {
     // "Collect everything" orchestration: once the satellite catalog for the locked area has
     // arrived, the terrain indicators are fetched automatically so a single run produces the
     // complete report. This is pure UI choreography — the ViewModel/backend calls are unchanged.
-    var terrainRequested by remember { mutableStateOf(false) }
-    LaunchedEffect(state.catalog, state.terrain, state.terrainBusy) {
-        if (!terrainRequested && state.catalog != null && state.terrain == null && !state.terrainBusy) {
-            // Only auto-run when a valid sketch exists (the terrain endpoint needs a polygon).
-            if (state.vertices.size >= 3) {
-                terrainRequested = true
-                vm.computeTerrain()
-            }
-        }
+    //
+    // The guard is keyed on the sketch *and* the run counter rather than a one-shot boolean: the
+    // old flag stayed set after a failure, so retrying the same area never refetched the terrain.
+    // Editing the polygon (or pressing retry) produces a new key and re-arms the auto-fetch.
+    val runKey = remember(state.vertices, state.runId) {
+        state.runId.toString() + "@" + state.vertices.joinToString("|") { "${it.lat},${it.lon}" }
     }
-    LaunchedEffect(state.validation) {
-        if (state.validation == null) terrainRequested = false
+    var terrainAttemptedFor by remember { mutableStateOf<String?>(null) }
+    LaunchedEffect(state.catalog, state.terrain, state.terrainBusy, runKey, state.runError) {
+        val ready = state.catalog != null &&
+            state.terrain == null &&
+            !state.terrainBusy &&
+            // A failed run must not silently keep retrying; the user retries explicitly.
+            state.runError == null &&
+            state.vertices.size >= 3 &&
+            terrainAttemptedFor != runKey
+        if (ready) {
+            terrainAttemptedFor = runKey
+            vm.computeTerrain()
+        }
     }
 
     // Confirmation for "copy summary" (uses the same snackbar channel as errors).

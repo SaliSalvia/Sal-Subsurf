@@ -50,7 +50,10 @@ android {
 
     buildTypes {
         release {
-            isMinifyEnabled = false
+            // Shrinking + resource stripping: the release APK is several MB smaller and starts
+            // faster. Rules for MapLibre and kotlinx-serialization live in proguard-rules.pro.
+            isMinifyEnabled = true
+            isShrinkResources = true
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
             if (hasCiSigning) {
                 signingConfig = signingConfigs.getByName("ci")

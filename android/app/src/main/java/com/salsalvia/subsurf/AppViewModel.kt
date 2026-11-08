@@ -35,6 +35,8 @@ data class UiState(
     val runError: String? = null,
     /** Area text captured when the run started, so the report can echo it. */
     val runAreaLabel: String? = null,
+    /** Increments on every collection run, so the UI can tell "same area, run again" apart. */
+    val runId: Int = 0,
     /**
      * Resolved light/dark flag. Written by the activity once per composition so that screens
      * (and the map basemap) follow the user's theme choice, not just the system setting.
@@ -144,6 +146,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
                     runError = null,
                     terrain = null,
                     runAreaLabel = formatArea(_state.value.vertices),
+                    runId = it.runId + 1,
                 )
             }
             val payload = polygonPayload()
