@@ -1,5 +1,6 @@
 package com.salsalvia.subsurf.ui
 
+import androidx.activity.compose.BackHandler
 import androidx.annotation.StringRes
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.core.animateFloatAsState
@@ -24,6 +25,7 @@ import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
@@ -34,6 +36,7 @@ import androidx.compose.material3.Snackbar
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -95,12 +98,42 @@ fun AppRoot(vm: AppViewModel) {
         }
     }
 
+    // Android back: from another tab return to the map; from the map ask before leaving.
+    var confirmExit by remember { mutableStateOf(false) }
+    BackHandler(enabled = tabIndex != 0) {
+        tabIndex = 0
+    }
+    BackHandler(enabled = tabIndex == 0 && !confirmExit) {
+        confirmExit = true
+    }
+
     // Confirmation for "copy summary" (uses the same snackbar channel as errors).
     LaunchedEffect(copiedNotice) {
         if (copiedNotice) {
             snackbar.showSnackbar(context.getString(R.string.report_copied))
             copiedNotice = false
         }
+    }
+
+    if (confirmExit) {
+        AlertDialog(
+            onDismissRequest = { confirmExit = false },
+            title = { Text(stringResource(R.string.exit_title)) },
+            text = { Text(stringResource(R.string.exit_body)) },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        confirmExit = false
+                        (context as? android.app.Activity)?.finish()
+                    },
+                ) { Text(stringResource(R.string.action_exit)) }
+            },
+            dismissButton = {
+                TextButton(onClick = { confirmExit = false }) {
+                    Text(stringResource(R.string.action_stay))
+                }
+            },
+        )
     }
 
     LaunchedEffect(state.message) {

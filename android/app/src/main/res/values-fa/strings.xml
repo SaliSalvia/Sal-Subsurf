@@ -148,4 +148,8 @@
     <string name="run_area_label">محدودهٔ قفل‌شده</string>
     <string name="status_offline">آفلاین</string>
     <string name="status_checking">در حال بررسی…</string>
+    <string name="exit_title">از ساب‌سرفیس‌اکسپلورر خارج می‌شوید؟</string>
+    <string name="exit_body">طرح شما و داده‌های جمع‌آوری‌شده تا زمانی که پاکشان نکنید باقی می‌مانند.</string>
+    <string name="action_exit">خروج</string>
+    <string name="action_stay">بمان</string>
 </resources>
