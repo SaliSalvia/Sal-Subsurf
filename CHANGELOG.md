@@ -4,7 +4,7 @@ All notable changes to this project are documented in this file.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [1.4.1] - 2026-11-07
 
 Operability release: everything between "it builds" and "someone can actually use it". Still
 presentation + client-side only — no backend, API-contract or geo-maths change.
@@ -46,6 +46,8 @@ presentation + client-side only — no backend, API-contract or geo-maths change
 - **Scoped cleartext policy** (`res/xml/network_security_config.xml`) replacing the blanket
   `android:usesCleartextTraffic="true"`: HTTPS everywhere, cleartext only for local/emulator hosts.
 - 22 new strings in English and فارسی (139 total, parity checked in CI).
+- `TERRAIN` retry is its own action, and editing the API address re-probes immediately so the
+  status pill can never show a stale result next to a new URL.
 
 ### Changed
 - Transport errors are translated into actionable sentences instead of raw exception text.

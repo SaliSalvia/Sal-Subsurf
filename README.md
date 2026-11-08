@@ -47,6 +47,9 @@ defensible surface indicators.
   elevation statistics, slope, roughness (TRI), gradient-orientation consistency, and a documented,
   weighted **surface terrain-anomaly score** with full provenance and caveats.
 * Android-to-API requests with loading, success, and error states; local offline validation fallback.
+* **Operational UX (v1.4.1)** — a lockable camera while tracing, a Google-Maps-style scale bar, a
+  startup backend probe with an offline notice, actionable failure banners with retry, and
+  share/copy of the run summary. Release builds are R8-shrunk and use a scoped cleartext policy.
 * Python unit tests and CI workflows.
 * Scientific guardrails and a staged implementation roadmap.
 
