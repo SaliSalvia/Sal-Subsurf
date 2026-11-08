@@ -92,6 +92,13 @@ fun AppRoot(vm: AppViewModel) {
         }
     }
 
+    // One-shot navigation to Results when a new validation report arrives. This lives here (and
+    // not in MapScreen) because the tab content is disposed/recomposed on every tab switch;
+    // an effect inside MapScreen would fire again on return and trap the user on Results.
+    LaunchedEffect(state.analysisSeq) {
+        if (state.analysisSeq > 0) tabIndex = Tab.RESULTS.ordinal
+    }
+
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
         contentWindowInsets = WindowInsets.safeDrawing,
@@ -131,7 +138,6 @@ fun AppRoot(vm: AppViewModel) {
                     Tab.MAP -> MapScreen(
                         vm = vm,
                         state = state,
-                        onAnalyzed = { tabIndex = Tab.RESULTS.ordinal },
                         contentPadding = padding,
                     )
                     Tab.RESULTS -> ResultsScreen(

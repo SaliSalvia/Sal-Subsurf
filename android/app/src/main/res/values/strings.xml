@@ -5,6 +5,10 @@
     <!-- Exploration flow (globe → lock → trace → collect) -->
     <string name="map_globe">Back to globe</string>
     <string name="map_recenter">Recenter</string>
+    <string name="map_zoom_in">Zoom in</string>
+    <string name="map_zoom_out">Zoom out</string>
+    <string name="map_loading">Loading map</string>
+    <string name="map_load_failed">The basemap could not be loaded. Check your connection and retry.</string>
     <string name="action_lock">Lock</string>
     <string name="action_unlock">Unlock</string>
     <string name="action_start_run">Collect data for this area</string>
@@ -33,6 +37,7 @@
     <string name="map_title">Survey region</string>
     <string name="action_undo">Undo</string>
     <string name="action_clear">Clear</string>
+    <string name="action_retry">Retry</string>
     <string name="analyzing_short">Analyzing</string>
     <string name="need_three_vertices">Add at least 3 vertices first</string>
     <string name="max_vertices">Maximum is 10 vertices</string>

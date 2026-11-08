@@ -5,6 +5,10 @@
     <!-- جریان کاوش (کره → قفل → مرزبندی → جمع‌آوری) -->
     <string name="map_globe">بازگشت به کره زمین</string>
     <string name="map_recenter">واسطه‌یابی</string>
+    <string name="map_zoom_in">بزرگ‌نمایی</string>
+    <string name="map_zoom_out">کوچک‌نمایی</string>
+    <string name="map_loading">در حال بارگذاری نقشه</string>
+    <string name="map_load_failed">نقشه پشتیبان بارگذاری نشد. اتصال اینترنت را بررسی کنید و دوباره تلاش کنید.</string>
     <string name="action_lock">قفل</string>
     <string name="action_unlock">باز کردن قفل</string>
     <string name="action_start_run">جمع‌آوری داده‌های این محدوده</string>
@@ -33,6 +37,7 @@
     <string name="map_title">محدوده پیمایش</string>
     <string name="action_undo">برگرداندن</string>
     <string name="action_clear">پاک کردن</string>
+    <string name="action_retry">تلاش دوباره</string>
     <string name="analyzing_short">تحلیل</string>
     <string name="need_three_vertices">ابتدا حداقل ۳ رأس اضافه کنید</string>
     <string name="max_vertices">حداکثر ۱۰ رأس مجاز است</string>

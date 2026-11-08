@@ -7,6 +7,16 @@ from typing import Any, Dict, List, Optional
 from pydantic import BaseModel, Field, field_validator
 
 
+def _validate_polygon_pairs(v: List[List[float]]) -> List[List[float]]:
+    """Shared shape check: an open/closed ring of distinct ``[lon, lat]`` pairs."""
+    if len(v) < 3:
+        raise ValueError("polygon needs at least 3 vertices")
+    for p in v:
+        if len(p) != 2:
+            raise ValueError("each vertex must be a [lon, lat] pair")
+    return v
+
+
 class RegionRequest(BaseModel):
     """A sketched region. ``polygon`` is an open or closed ring of ``[lon, lat]`` pairs."""
 
@@ -16,12 +26,7 @@ class RegionRequest(BaseModel):
     @field_validator("polygon")
     @classmethod
     def _check_pairs(cls, v: List[List[float]]) -> List[List[float]]:
-        if len(v) < 3:
-            raise ValueError("polygon needs at least 3 vertices")
-        for p in v:
-            if len(p) != 2:
-                raise ValueError("each vertex must be a [lon, lat] pair")
-        return v
+        return _validate_polygon_pairs(v)
 
 
 class RegionCheckOut(BaseModel):
@@ -42,6 +47,13 @@ class CatalogRequest(BaseModel):
     date_to: str = Field(..., pattern=r"^\d{4}-\d{2}-\d{2}$")
     max_cloud_percent: float = Field(30.0, ge=0.0, le=100.0)
     max_results: int = Field(15, ge=1, le=25)
+
+    @field_validator("polygon")
+    @classmethod
+    def _check_pairs(cls, v: List[List[float]]) -> List[List[float]]:
+        # Same contract as RegionRequest: fail fast with 422 on malformed vertices instead of
+        # silently truncating triples or forwarding a degenerate ring to the geometry checks.
+        return _validate_polygon_pairs(v)
 
 
 class ProductSummary(BaseModel):
@@ -95,6 +107,7 @@ class TerrainResponse(BaseModel):
     gradient_consistency: Optional[float] = None
     surface_anomaly_score: Optional[float] = None
     score_components: Dict[str, float] = {}
+    score_definition: Optional[str] = None
     provenance: List[ProvenanceNote] = []
     caveats: List[str] = []
 

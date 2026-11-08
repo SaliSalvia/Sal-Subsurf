@@ -33,8 +33,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
+import com.salsalvia.subsurf.R
 import com.salsalvia.subsurf.geo.Vertex
 import com.salsalvia.subsurf.ui.icons.SubsurfIcons
 import org.maplibre.android.MapLibre
@@ -165,7 +167,21 @@ class RegionMapController {
         )
     }
 
+    /** Re-attempts the basemap download after a failed style load (e.g. device was offline). */
+    fun retry() {
+        loadStyle(darkStyle ?: false)
+    }
+
     private fun installLayers(style: Style) {
+        // A retry can hand us a style that still carries our ids; clear them first so
+        // addSource/addLayer never throws on a duplicate id.
+        for (id in listOf(LAYER_FILL, LAYER_OPEN, LAYER_DASH, LAYER_LINE, LAYER_HALO, LAYER_POINTS, LAYER_CENTER)) {
+            style.getLayer(id)?.let { style.removeLayer(it) }
+        }
+        for (id in listOf(SRC_TRACE, SRC)) {
+            style.getSource(id)?.let { style.removeSource(it) }
+        }
+
         // --- The traced exploration boundary ------------------------------- //
         val trace = GeoJsonSource(SRC_TRACE)
         style.addSource(trace)
@@ -358,11 +374,14 @@ fun RegionMapView(
     fitRequest: Int = 0,
     onController: (RegionMapController) -> Unit = {},
     onLoadState: (Boolean) -> Unit = {},
+    onLoadError: () -> Unit = {},
 ) {
     val context = LocalContext.current
     val controller = remember { RegionMapController() }
     val currentTap by rememberUpdatedState(onMapTap)
     val currentDark by rememberUpdatedState(dark)
+    val currentLoadState by rememberUpdatedState(onLoadState)
+    val currentLoadError by rememberUpdatedState(onLoadError)
     var mapView by remember { mutableStateOf<MapView?>(null) }
 
     AndroidView(
@@ -379,8 +398,8 @@ fun RegionMapView(
                         onController(controller)
                     },
                 )
-                addOnDidFinishLoadingMapListener { onLoadState(true) }
-                addOnDidFailLoadingMapListener { onLoadState(true) }
+                addOnDidFinishLoadingMapListener { currentLoadState(true) }
+                addOnDidFailLoadingMapListener { currentLoadError() }
                 mapView = this
             }
         },
@@ -425,7 +444,7 @@ fun MapZoomControls(
             .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.94f)),
         verticalArrangement = Arrangement.spacedBy(1.dp),
     ) {
-        ZoomButton(SubsurfIcons.Plus, "Zoom in", onZoomIn)
+        ZoomButton(SubsurfIcons.Plus, stringResource(R.string.map_zoom_in), onZoomIn)
         Box(
             Modifier
                 .padding(horizontal = 10.dp)
@@ -433,7 +452,7 @@ fun MapZoomControls(
                 .height(1.dp)
                 .background(MaterialTheme.colorScheme.outlineVariant),
         )
-        ZoomButton(SubsurfIcons.Minus, "Zoom out", onZoomOut)
+        ZoomButton(SubsurfIcons.Minus, stringResource(R.string.map_zoom_out), onZoomOut)
     }
 }
 
@@ -471,7 +490,7 @@ fun MapLoadingOverlay(visible: Boolean, modifier: Modifier = Modifier) {
                 horizontalArrangement = Arrangement.spacedBy(10.dp),
             ) {
                 CircularProgressIndicator(Modifier.size(16.dp), strokeWidth = 2.dp)
-                Text("Loading map", style = MaterialTheme.typography.labelMedium)
+                Text(stringResource(R.string.map_loading), style = MaterialTheme.typography.labelMedium)
             }
         }
     }

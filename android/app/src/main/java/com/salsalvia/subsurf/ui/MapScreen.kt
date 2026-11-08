@@ -39,6 +39,7 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -70,6 +71,7 @@ import com.salsalvia.subsurf.map.RegionMapView
 import com.salsalvia.subsurf.ui.components.Pill
 import com.salsalvia.subsurf.ui.icons.SubsurfIcons
 import com.salsalvia.subsurf.ui.theme.Dims
+import com.salsalvia.subsurf.ui.theme.isDarkTheme
 
 /**
  * Exploration mode of the home screen.
@@ -89,19 +91,27 @@ private enum class MapMode { EXPLORE, TRACE }
 fun MapScreen(
     vm: AppViewModel,
     state: UiState,
-    onAnalyzed: () -> Unit,
     contentPadding: PaddingValues = PaddingValues(),
 ) {
     val haptics = LocalHapticFeedback.current
-    val dark = androidx.compose.foundation.isSystemInDarkTheme()
+    // Follow the user's appearance choice, not just the system setting — otherwise a forced
+    // light theme would still render the dark basemap (and vice versa).
+    val dark = state.themeMode.isDarkTheme()
     val statusBars = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
 
     var mapReady by remember { mutableStateOf(false) }
+    var mapFailed by remember { mutableStateOf(false) }
     var fitRequest by remember { mutableIntStateOf(0) }
     var controller by remember { mutableStateOf<RegionMapController?>(null) }
     var mode by remember { mutableStateOf(MapMode.EXPLORE) }
     var cameraMoved by remember { mutableStateOf(false) }
     var pinned by remember { mutableStateOf(false) }
+
+    // A failed or finished run must never leave the full-screen collection overlay covering
+    // the map: it is only meant to bridge the in-flight request.
+    LaunchedEffect(state.busy) {
+        if (!state.busy) pinned = false
+    }
 
     val tracing = mode == MapMode.TRACE
     val vertexCount = state.vertices.size
@@ -110,7 +120,9 @@ fun MapScreen(
 
     val latestTap = rememberUpdatedState(newValue = { lat: Double, lon: Double ->
         // In explore mode the map is for navigation only; the boundary is drawn after lock.
-        if (mode == MapMode.TRACE) {
+        // Ignore taps while a request is in flight so a report can never describe a different
+        // ring than the one currently drawn.
+        if (mode == MapMode.TRACE && !state.busy) {
             if (vertexCount < GeoMath.MAX_VERTICES) {
                 haptics.performHapticFeedback(HapticFeedbackType.LongPress)
             }
@@ -139,7 +151,14 @@ fun MapScreen(
                 controller = c
                 c.onCameraMoved = { cameraMoved = true }
             },
-            onLoadState = { mapReady = true },
+            onLoadState = {
+                mapReady = true
+                mapFailed = false
+            },
+            onLoadError = {
+                mapReady = true
+                mapFailed = true
+            },
         )
 
         // --- Top bar: brand, mode chip, globe/fit actions ------------------- //
@@ -156,6 +175,18 @@ fun MapScreen(
                 onFit = { fitRequest++ },
                 hasSketch = vertexCount > 0,
             )
+            AnimatedVisibility(
+                visible = mapFailed,
+                enter = fadeIn(tween(200)),
+                exit = fadeOut(tween(140)),
+            ) {
+                MapErrorBanner(
+                    onRetry = {
+                        mapFailed = false
+                        controller?.retry()
+                    },
+                )
+            }
             AnimatedVisibility(
                 visible = polygonReady(vertexCount),
                 enter = fadeIn(tween(200)),
@@ -227,14 +258,6 @@ fun MapScreen(
             visible = state.busy || (pinned && state.catalog == null),
             vertices = vertexCount,
         )
-    }
-
-    // Jump to the Results tab as soon as the server validation arrives.
-    LaunchedEffect(state.validation) {
-        if (state.validation != null && !state.busy) {
-            pinned = false
-            onAnalyzed()
-        }
     }
 }
 
@@ -775,3 +798,26 @@ private fun CollectStep(label: String, done: Boolean) {
 
 internal fun formatNumber(value: Double, digits: Int): String =
     String.format(java.util.Locale.US, "%.${digits}f", value)
+
+@Composable
+private fun MapErrorBanner(onRetry: () -> Unit) {
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(18.dp))
+            .background(MaterialTheme.colorScheme.errorContainer)
+            .padding(start = Dims.l, end = Dims.s, top = Dims.xs, bottom = Dims.xs),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(Dims.s),
+    ) {
+        Text(
+            stringResource(R.string.map_load_failed),
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onErrorContainer,
+            modifier = Modifier.weight(1f),
+        )
+        TextButton(onClick = onRetry) {
+            Text(stringResource(R.string.action_retry))
+        }
+    }
+}

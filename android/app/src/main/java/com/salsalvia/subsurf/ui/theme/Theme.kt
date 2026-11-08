@@ -14,6 +14,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.unit.dp
 import androidx.core.view.WindowCompat
+import com.salsalvia.subsurf.data.ThemeMode
 
 /**
  * Light scheme — a daylight "field instrument": crisp white surfaces, gold as the accent for
@@ -124,6 +125,14 @@ object Dims {
     val xl = 20.dp
     val xxl = 28.dp
     val minTouch = 48.dp
+}
+
+/** Resolves the user's stored appearance preference against the current system setting. */
+@Composable
+fun ThemeMode.isDarkTheme(): Boolean = when (this) {
+    ThemeMode.SYSTEM -> isSystemInDarkTheme()
+    ThemeMode.LIGHT -> false
+    ThemeMode.DARK -> true
 }
 
 @Composable

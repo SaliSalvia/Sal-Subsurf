@@ -31,6 +31,12 @@ data class UiState(
     val terrain: TerrainResponse? = null,
     /** Purely presentational: how the user wants light/dark resolved. */
     val themeMode: ThemeMode = ThemeMode.DARK,
+    /**
+     * Monotonic counter bumped whenever a validation report is ready. The UI navigates on a
+     * change of this value, so returning to the Map tab does not immediately bounce the user
+     * back to Results (the report itself stays in [validation]).
+     */
+    val analysisSeq: Int = 0,
 )
 
 class AppViewModel(app: Application) : AndroidViewModel(app) {
@@ -92,6 +98,8 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
 
     fun analyze() {
         val current = _state.value
+        // Guard against a double tap landing before recomposition disables the button.
+        if (current.busy) return
         if (current.vertices.size < GeoMath.MIN_VERTICES) {
             _state.update { it.copy(message = res(R.string.need_three_vertices)) }
             return
@@ -111,7 +119,13 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
                 val api = ApiClient.api(_state.value.apiBaseUrl)
                 val validation = api.validate(RegionRequest(polygon = payload))
                 if (!validation.valid) {
-                    _state.update { it.copy(busy = false, validation = validation) }
+                    _state.update {
+                        it.copy(
+                            busy = false,
+                            validation = validation,
+                            analysisSeq = it.analysisSeq + 1,
+                        )
+                    }
                     return@launch
                 }
                 val today = LocalDate.now()
@@ -125,7 +139,12 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
                     )
                 )
                 _state.update {
-                    it.copy(busy = false, validation = validation, catalog = catalog)
+                    it.copy(
+                        busy = false,
+                        validation = validation,
+                        catalog = catalog,
+                        analysisSeq = it.analysisSeq + 1,
+                    )
                 }
             } catch (e: Exception) {
                 _state.update {
@@ -136,6 +155,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     fun computeTerrain() {
+        if (_state.value.terrainBusy) return
         val payload = polygonPayload()
         if (payload.size < GeoMath.MIN_VERTICES) return
         viewModelScope.launch {

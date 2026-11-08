@@ -6,13 +6,12 @@ import androidx.activity.ComponentActivity
 import androidx.activity.SystemBarStyle
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.lifecycle.viewmodel.compose.viewModel
-import com.salsalvia.subsurf.data.ThemeMode
 import com.salsalvia.subsurf.ui.AppRoot
 import com.salsalvia.subsurf.ui.theme.SubsurfTheme
+import com.salsalvia.subsurf.ui.theme.isDarkTheme
 
 class MainActivity : ComponentActivity() {
 
@@ -28,12 +27,7 @@ class MainActivity : ComponentActivity() {
         setContent {
             val vm: AppViewModel = viewModel()
             val state by vm.state.collectAsState()
-            val dark = when (state.themeMode) {
-                ThemeMode.SYSTEM -> isSystemInDarkTheme()
-                ThemeMode.LIGHT -> false
-                ThemeMode.DARK -> true
-            }
-            SubsurfTheme(darkTheme = dark) {
+            SubsurfTheme(darkTheme = state.themeMode.isDarkTheme()) {
                 AppRoot(vm)
             }
         }

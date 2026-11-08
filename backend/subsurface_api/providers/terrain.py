@@ -227,7 +227,14 @@ def analyze_region(
         )
 
     nodata_fraction = float(np.isnan(grid).mean())
-    filled = np.where(np.isnan(grid), np.nanmean(grid), grid)
+    mean_elev = float(np.nanmean(grid)) if not np.isnan(grid).all() else float("nan")
+    if not math.isfinite(mean_elev):
+        # Tiles downloaded but none of them cover the sampling grid (e.g. all overlapping
+        # tiles failed). Returning NaN here would later break JSON serialisation with a 500.
+        raise RuntimeError(
+            "DEM tiles were downloaded but contain no valid samples for this region; retry."
+        )
+    filled = np.where(np.isnan(grid), mean_elev, grid)
 
     # Cell size in metres for the sampling grid (rows go southwards).
     lat_mid = 0.5 * (min_lat + max_lat)
