@@ -433,10 +433,7 @@ private fun TerrainCard(vm: AppViewModel, state: UiState) {
                 )
             }
             Button(
-                onClick = {
-                    vm.dismissError()
-                    vm.computeTerrain()
-                },
+                onClick = { vm.retryTerrain() },
                 enabled = !state.terrainBusy,
                 modifier = Modifier
                     .fillMaxWidth()

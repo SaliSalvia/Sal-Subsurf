@@ -36,17 +36,9 @@ class SettingsStore(context: Context) {
             prefs.edit().putString(KEY_THEME, value.name).apply()
         }
 
-    /** Where the user's coordinates are, if they have ever been captured. */
-    var lastLocation: String?
-        get() = prefs.getString(KEY_LOCATION, null)
-        set(value) {
-            prefs.edit().putString(KEY_LOCATION, value).apply()
-        }
-
     companion object {
         private const val PREFS_NAME = "subsurf_settings"
         private const val KEY_URL = "api_base_url"
         private const val KEY_THEME = "theme_mode"
-        private const val KEY_LOCATION = "last_location"
     }
 }

@@ -42,9 +42,8 @@ data class UiState(
      * (and the map basemap) follow the user's theme choice, not just the system setting.
      */
     val isDark: Boolean = true,
-    /** Result of the startup reachability probe (`null` = not checked yet). */
+    /** Result of the startup reachability probe (`null` = still checking / not run yet). */
     val backendOnline: Boolean? = null,
-    val backendChecked: Boolean = false,
 ) {
     /** True while either network stage of a run is in flight. */
     val isCollecting: Boolean get() = busy || terrainBusy
@@ -71,7 +70,6 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
      */
     fun probeBackend() {
         viewModelScope.launch {
-            _state.update { it.copy(backendChecked = true) }
             try {
                 ApiClient.api(_state.value.apiBaseUrl).health()
                 _state.update { it.copy(backendOnline = true) }
@@ -88,6 +86,12 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
 
     /** Clears a failed run so the retry button can be pressed again. */
     fun dismissError() = _state.update { it.copy(runError = null) }
+
+    /** Retries just the terrain step after the rest of the run succeeded. */
+    fun retryTerrain() {
+        dismissError()
+        computeTerrain()
+    }
 
     fun addVertex(lat: Double, lon: Double) {
         _state.update { s ->
@@ -126,7 +130,10 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     fun saveBaseUrl(url: String) {
         val normalized = if (url.endsWith("/")) url else "$url/"
         settings.apiBaseUrl = normalized
-        _state.update { it.copy(apiBaseUrl = normalized) }
+        // Re-probe immediately: changing the address should visibly refresh the online pill
+        // instead of leaving a stale "Offline" badge next to the new URL.
+        _state.update { it.copy(apiBaseUrl = normalized, backendOnline = null) }
+        probeBackend()
     }
 
     private fun polygonPayload(): List<List<Double>> =
