@@ -422,8 +422,21 @@ private fun TerrainCard(vm: AppViewModel, state: UiState) {
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
+            // Terrain is the step most likely to fail (large polygons can exceed the DEM
+            // window). Say why, and make the button below an explicit retry.
+            if (state.runError != null && !state.terrainBusy) {
+                Text(
+                    text = state.runError,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.error,
+                    modifier = Modifier.padding(top = Dims.xs),
+                )
+            }
             Button(
-                onClick = { vm.computeTerrain() },
+                onClick = {
+                    vm.dismissError()
+                    vm.computeTerrain()
+                },
                 enabled = !state.terrainBusy,
                 modifier = Modifier
                     .fillMaxWidth()
@@ -445,7 +458,15 @@ private fun TerrainCard(vm: AppViewModel, state: UiState) {
                     Icon(SubsurfIcons.Terrain, contentDescription = null, modifier = Modifier.size(17.dp))
                     Spacer(Modifier.width(8.dp))
                 }
-                Text(stringResource(if (state.terrainBusy) R.string.computing else R.string.compute_terrain))
+                Text(
+                    stringResource(
+                        when {
+                            state.terrainBusy -> R.string.computing
+                            state.runError != null -> R.string.action_retry
+                            else -> R.string.compute_terrain
+                        },
+                    ),
+                )
             }
             return@SubsurfCard
         }
