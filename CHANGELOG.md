@@ -25,6 +25,10 @@ Operational hardening pass — no change to the scientific models or API contrac
 - Copernicus catalog calls retry transient 429/5xx responses with capped exponential
   backoff and honour a small `Retry-After`; malformed JSON becomes a clean 502.
 - Container image runs as unprivileged uid 10001 and owns only its artifact directory.
+- Backend dependencies are pinned with SHA-256 hashes in `requirements.lock` and
+  `requirements-dev.lock` (universal markers for Python 3.10+, uv-generated); Docker and CI
+  install those locks, and `requirements.txt` is now a shim for PaaS hosts. Builds no longer
+  drift with new upstream releases.
 
 ### Fixed
 - Android: `busy`/`terrainBusy` are set before the coroutine starts (double-tap race), and a

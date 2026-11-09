@@ -9,7 +9,7 @@
 
 - حساب رانفلر (ایمیل + شماره موبایل، تأیید‌شده) → https://runflare.com
 - فایل‌های بک‌اند (همین ریپو، پوشه `backend/`) شامل:
-  - `requirements.txt` ← وابستگی‌ها (fastapi، uvicorn، numpy، tifffile، …)
+  - `requirements.lock` ← وابستگی‌های کاملاً قفل‌شده با hash (fastapi، uvicorn، numpy، …)؛ `requirements.txt` هم به همان اشاره می‌کند
   - `Dockerfile` ← به `$PORT` احترام می‌گذارد + health check داخلی
   - پکیج `subsurface_api/` (شامل ماژول پردازش عمیق `deep/`)
 
@@ -64,7 +64,7 @@ runflare deploy          # در پایان سوال y/n لاگ زنده می‌�
 دستور اجرا (اگر از نوع سرویس FastAPI/Python استفاده می‌کنید به‌جای Docker):
 
 ```
-pip install -r requirements.txt && uvicorn subsurface_api.main:app --host 0.0.0.0 --port $PORT
+pip install -r requirements.lock && pip install --no-deps . && uvicorn subsurface_api.main:app --host 0.0.0.0 --port $PORT
 ```
 
 ### متغیرهای محیطی و Secrets
