@@ -1,5 +1,7 @@
 [build-system]
-requires = ["setuptools>=68"]
+# Pinned exactly so wheel builds use the same setuptools version everywhere;
+# the matching hash-verified lock is requirements-build.lock.
+requires = ["setuptools==84.2.1"]
 build-backend = "setuptools.build_meta"
 
 [project]

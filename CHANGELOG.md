@@ -29,6 +29,9 @@ Operational hardening pass — no change to the scientific models or API contrac
   `requirements-dev.lock` (universal markers for Python 3.10+, uv-generated); Docker and CI
   install those locks, and `requirements.txt` is now a shim for PaaS hosts. Builds no longer
   drift with new upstream releases.
+- The PEP 517 build backend is pinned too (`setuptools==84.2.1` in `pyproject.toml` and
+  hash-locked in `requirements-build.lock`); Docker and CI build the wheel with
+  `--no-build-isolation` and a fixed `SOURCE_DATE_EPOCH`, producing byte-identical wheels.
 
 ### Fixed
 - Android: `busy`/`terrainBusy` are set before the coroutine starts (double-tap race), and a
