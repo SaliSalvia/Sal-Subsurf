@@ -14,7 +14,7 @@ from fastapi.responses import FileResponse, JSONResponse
 from pydantic import BaseModel, Field, field_validator
 
 from . import cdse_process
-from .jobs import manager
+from .jobs import QueueFull, manager
 from .outputs import safe_filename
 from .pipeline import ARTIFACTS, DeepParams, run_selftest
 
@@ -146,7 +146,12 @@ def analyze(req: DeepAnalyzeRequest) -> dict:
         alpha=req.alpha,
         resolution_m=req.resolution_m,
     )
-    job_id = manager.submit(params.sanitized(), req.mode)
+    try:
+        job_id = manager.submit(params.sanitized(), req.mode)
+    except QueueFull as exc:
+        raise HTTPException(
+            status_code=429, detail=str(exc), headers={"Retry-After": "30"}
+        ) from exc
     job = manager.get(job_id)
     return {"accepted": True, **(job.public() if job else {"job_id": job_id})}
 

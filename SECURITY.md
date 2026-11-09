@@ -14,6 +14,14 @@ vulnerability) instead of a public issue. You can expect an initial response wit
 * Release signing material must live only in GitHub Secrets (or your own secure storage). The
   repository never contains keystores; `.gitignore` blocks `*.keystore`, `*.jks`, and `*.b64`.
 
+## Operational notes
+
+* Request ids are opaque correlation tokens only; they never contain credentials, and the
+  request log records method/path/status/duration — not headers or bodies.
+* The container image runs as an unprivileged user (uid 10001) and writes only to its
+  artifact directory.
+* Release builds disable HTTP logging in the Android client.
+
 ## Known limitations
 
 * The app talks to the backend over plain HTTP on local networks for development convenience

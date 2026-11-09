@@ -7,6 +7,7 @@ account; that is out of scope for this service (metadata-only by design, see SCI
 
 from __future__ import annotations
 
+import time
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Sequence, Tuple
 
@@ -23,6 +24,23 @@ LICENCE_NOTE = (
     "Component Data Open Access licence. Catalog metadata retrieved anonymously."
 )
 MAX_RESULTS_LIMIT = 25
+
+# Transient upstream states worth retrying; anything else fails fast.
+RETRY_STATUS = frozenset({429, 500, 502, 503, 504})
+MAX_ATTEMPTS = 3
+_sleep = time.sleep
+
+
+def _retry_delay(resp: requests.Response | None, attempt: int) -> float:
+    """Backoff for one failed attempt; honours a small ``Retry-After`` when present."""
+    if resp is not None:
+        retry_after = resp.headers.get("Retry-After")
+        if retry_after:
+            try:
+                return min(5.0, max(0.0, float(retry_after)))
+            except (TypeError, ValueError):
+                pass
+    return min(4.0, 0.5 * (2 ** attempt))
 
 
 def build_filter(ring: Sequence[Tuple[float, float]], date_from: str, date_to: str) -> str:
@@ -77,24 +95,40 @@ def search_products(
         "$expand": "Attributes",
         "$orderby": "ContentDate/Start desc",
         "$top": max(1, min(int(max_results), MAX_RESULTS_LIMIT)),
+        # Ask for the full match count: $top only pages the returned products.
+        "$count": "true",
     }
-    try:
-        resp = requests.get(
-            ODATA_URL,
-            params=params,
-            timeout=timeout,
-            headers={"Accept": "application/json"},
-        )
-    except requests.RequestException as exc:
-        raise RuntimeError(f"Could not reach the Copernicus catalog: {exc}") from exc
+    resp: requests.Response | None = None
+    for attempt in range(MAX_ATTEMPTS):
+        try:
+            resp = requests.get(
+                ODATA_URL,
+                params=params,
+                timeout=timeout,
+                headers={"Accept": "application/json"},
+            )
+        except requests.RequestException as exc:
+            if attempt == MAX_ATTEMPTS - 1:
+                raise RuntimeError(f"Could not reach the Copernicus catalog: {exc}") from exc
+            _sleep(_retry_delay(None, attempt))
+            continue
 
-    if resp.status_code != 200:
+        if resp.status_code == 200:
+            break
+        if resp.status_code in RETRY_STATUS and attempt < MAX_ATTEMPTS - 1:
+            _sleep(_retry_delay(resp, attempt))
+            continue
         raise RuntimeError(
             f"Copernicus catalog returned HTTP {resp.status_code}. The service is "
             f"occasionally busy (HTTP 429/503) — retry in a few seconds."
         )
 
-    raw = resp.json().get("value", [])
+    try:
+        payload = resp.json()
+    except ValueError as exc:
+        raise RuntimeError("Copernicus catalog returned malformed JSON.") from exc
+
+    raw = payload.get("value", []) or []
     products = [parse_product(p) for p in raw]
     kept = [
         p
@@ -108,9 +142,14 @@ def search_products(
             f"All {len(raw)} matched products exceed the {max_cloud_percent:.0f}% "
             f"cloud-cover limit. Widen the date range or raise the limit."
         )
+    try:
+        total_matched = int(payload.get("@odata.count"))
+    except (TypeError, ValueError):
+        total_matched = len(products)
+
     return {
         "products": kept,
-        "total_matched": len(products),
+        "total_matched": total_matched,
         "provenance": [
             {
                 "provider": PROVIDER,

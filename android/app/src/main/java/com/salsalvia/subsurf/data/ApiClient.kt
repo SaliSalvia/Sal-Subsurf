@@ -1,5 +1,6 @@
 package com.salsalvia.subsurf.data
 
+import com.salsalvia.subsurf.BuildConfig
 import kotlinx.serialization.json.Json
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
@@ -37,7 +38,9 @@ object ApiClient {
         .connectTimeout(20, TimeUnit.SECONDS)
         .readTimeout(150, TimeUnit.SECONDS)
         .addInterceptor(HttpLoggingInterceptor().apply {
-            level = HttpLoggingInterceptor.Level.BASIC
+            // Request URLs are user data: never write them to logcat in a release build.
+            level = if (BuildConfig.DEBUG) HttpLoggingInterceptor.Level.BASIC
+            else HttpLoggingInterceptor.Level.NONE
         })
         .build()
 

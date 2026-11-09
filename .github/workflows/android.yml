@@ -58,7 +58,7 @@ jobs:
           # Important: capture Gradle's own exit code out of the pipeline. (An `|| true` after the
           # pipeline would reset PIPESTATUS, which previously hid real compiler failures.)
           set +e
-          ./gradlew --no-daemon --stacktrace :app:assembleDebug :app:assembleRelease :app:testDebugUnitTest 2>&1 | tee build.log
+          ./gradlew --no-daemon --stacktrace :app:assembleDebug :app:assembleRelease :app:testDebugUnitTest :app:lintDebug 2>&1 | tee build.log
           STATUS=${PIPESTATUS[0]}
           set -e
 

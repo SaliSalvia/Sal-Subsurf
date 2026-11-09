@@ -70,10 +70,11 @@ android {
         buildConfig = true
     }
 
-    // Lint runs on demand (`gradle :app:lintDebug`); it must not block APK delivery.
+    // Lint is a hard gate on the debug variant (CI runs :app:lintDebug).
+    // Release lint stays off to keep release packaging fast.
     lint {
         checkReleaseBuilds = false
-        abortOnError = false
+        abortOnError = true
     }
 }
 

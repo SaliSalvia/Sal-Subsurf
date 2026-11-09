@@ -112,6 +112,10 @@ uvicorn subsurface_api.main:app --reload
 
 API documentation: `http://127.0.0.1:8000/docs`.
 
+Operations: `GET /api/v1/health` is a dependency-free liveness probe, `GET /api/v1/ready`
+returns `503` unless the artifact directory is writable (used by the container health check),
+and every response includes an `X-Request-ID` that also appears in the server log line.
+
 ## Open the Android app
 
 Open `android/` in Android Studio with JDK 17+, Android SDK Platform 36, and Build Tools 36.0.0.

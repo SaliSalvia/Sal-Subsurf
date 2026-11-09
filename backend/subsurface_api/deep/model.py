@@ -18,7 +18,7 @@ This is a *surface spectral-behaviour* anomaly detector — not a target detecto
 
 from __future__ import annotations
 
-from typing import Dict, Optional, Tuple
+from typing import Dict, Tuple
 
 import numpy as np
 

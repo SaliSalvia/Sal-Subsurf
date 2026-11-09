@@ -17,12 +17,10 @@ planted anomaly CPF retains high recall.
 from __future__ import annotations
 
 import numpy as np
-import pytest
 
 from subsurface_api.deep import raster, temporal as T, cdse_process as C
 from subsurface_api.deep.cpf import cpf_analyze
 from subsurface_api.deep.fusion import fuse
-from subsurface_api.deep.labels import label_components
 from subsurface_api.deep.model import deep_anomaly
 
 G = 96          # grid size (small → fast CI)

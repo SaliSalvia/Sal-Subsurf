@@ -26,7 +26,7 @@ from __future__ import annotations
 import logging
 import os
 import time
-from typing import Dict, List, Optional, Sequence, Tuple
+from typing import Dict, List, Sequence, Tuple
 
 import numpy as np
 import requests
@@ -225,7 +225,7 @@ def plan_dates(
     max_dates: int,
 ) -> List[str]:
     """Newest-first candidate acquisition dates (daily stepping, capped)."""
-    from datetime import date as _date, datetime as _datetime, timedelta as _td
+    from datetime import datetime as _datetime, timedelta as _td
 
     d0 = _datetime.strptime(date_from, "%Y-%m-%d").date()
     d1 = _datetime.strptime(date_to, "%Y-%m-%d").date()

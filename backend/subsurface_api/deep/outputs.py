@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import json
 import os
-from typing import Dict, List, Optional, Sequence
+from typing import Optional, Sequence
 
 import numpy as np
 import tifffile

@@ -6,7 +6,27 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
-_Nothing yet._
+Operational hardening pass — no change to the scientific models or API contracts.
+
+### Added
+- `GET /api/v1/ready` readiness probe that verifies the artifact volume is writable; the
+  Docker `HEALTHCHECK` now uses it, while `/api/v1/health` stays I/O-free (liveness).
+- Every HTTP response carries an `X-Request-ID` (client-supplied IDs are accepted only when
+  they match a safe charset) and the server logs one line per request with status and latency.
+- Deep-processing queue cap (`MAX_ACTIVE_JOBS = 4`): excess submissions get HTTP 429 with
+  `Retry-After` instead of queueing unbounded RAM-heavy jobs.
+- Catalog responses now report the true `total_matched` via OData `$count=true`.
+- CI gates: Android `:app:lintDebug` (with `abortOnError = true`) and backend `ruff` E9/F.
+
+### Changed
+- Copernicus catalog calls retry transient 429/5xx responses with capped exponential
+  backoff and honour a small `Retry-After`; malformed JSON becomes a clean 502.
+- Container image runs as unprivileged uid 10001 and owns only its artifact directory.
+
+### Fixed
+- Android: `busy`/`terrainBusy` are set before the coroutine starts (double-tap race), and a
+  late response is discarded when the sketch changed while the request was in flight.
+- Android: HTTP logging is disabled in release builds so request URLs never reach logcat.
 
 ## [1.4.0] - 2026-11-08
 

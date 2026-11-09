@@ -104,20 +104,27 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
             _state.update { it.copy(message = res(R.string.need_three_vertices)) }
             return
         }
-        viewModelScope.launch {
-            _state.update { it.copy(busy = true, message = null) }
-            val payload = polygonPayload()
+        val payload = current.vertices.map { listOf(it.lon, it.lat) }
 
-            // Offline guard first — no network request for a broken sketch.
-            if (!GeoMath.localCheck(payload)) {
-                _state.update {
-                    it.copy(busy = false, message = res(R.string.offline_valid_bad))
-                }
-                return@launch
-            }
+        // Offline guard first — no network request for a broken sketch.
+        if (!GeoMath.localCheck(payload)) {
+            _state.update { it.copy(message = res(R.string.offline_valid_bad)) }
+            return
+        }
+
+        // Mark busy before launching: two taps in the same frame would otherwise both pass
+        // the guard above, because the coroutine only flips the flag once it starts running.
+        _state.update { it.copy(busy = true, message = null) }
+        viewModelScope.launch {
             try {
                 val api = ApiClient.api(_state.value.apiBaseUrl)
                 val validation = api.validate(RegionRequest(polygon = payload))
+                // The user may have edited the sketch while the request was in flight; a late
+                // report must never be attached to a different ring.
+                if (!isCurrentSketch(payload)) {
+                    _state.update { it.copy(busy = false) }
+                    return@launch
+                }
                 if (!validation.valid) {
                     _state.update {
                         it.copy(
@@ -138,6 +145,10 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
                         maxResults = 12,
                     )
                 )
+                if (!isCurrentSketch(payload)) {
+                    _state.update { it.copy(busy = false) }
+                    return@launch
+                }
                 _state.update {
                     it.copy(
                         busy = false,
@@ -154,15 +165,22 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         }
     }
 
+    private fun isCurrentSketch(payload: List<List<Double>>): Boolean =
+        polygonPayload() == payload
+
     fun computeTerrain() {
         if (_state.value.terrainBusy) return
         val payload = polygonPayload()
         if (payload.size < GeoMath.MIN_VERTICES) return
+        _state.update { it.copy(terrainBusy = true, message = null) }
         viewModelScope.launch {
-            _state.update { it.copy(terrainBusy = true, message = null) }
             try {
                 val terrain = ApiClient.api(_state.value.apiBaseUrl)
                     .terrainIndicators(RegionRequest(polygon = payload))
+                if (!isCurrentSketch(payload)) {
+                    _state.update { it.copy(terrainBusy = false) }
+                    return@launch
+                }
                 _state.update { it.copy(terrainBusy = false, terrain = terrain) }
             } catch (e: Exception) {
                 _state.update {

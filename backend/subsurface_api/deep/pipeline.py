@@ -42,7 +42,6 @@ from .fusion import WEIGHTS, fuse
 from .labels import detections_to_geojson, label_components
 from .model import deep_anomaly
 from .outputs import (
-    job_dir,
     write_geotiff,
     write_json,
     write_layer_png,

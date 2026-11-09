@@ -5,11 +5,15 @@ from __future__ import annotations
 
 import logging
 import os
+import re
+import tempfile
+import time
+import uuid
 from datetime import date, datetime, timedelta, timezone
 
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, JSONResponse
 
 from . import __version__
 from .deep.router import router as deep_router
@@ -29,6 +33,51 @@ from .validation import validate_region
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
 log = logging.getLogger("subsurface_api")
+
+_RID_RE = re.compile(r"^[A-Za-z0-9._-]{1,64}$")
+
+
+class RequestContextMiddleware:
+    """Adds an ``X-Request-ID`` to every response and logs one line per request.
+
+    Implemented as a raw ASGI middleware (not ``BaseHTTPMiddleware``) so streaming
+    responses such as artifact downloads are not wrapped or buffered.
+    """
+
+    def __init__(self, app):
+        self.app = app
+
+    async def __call__(self, scope, receive, send):
+        if scope["type"] != "http":
+            await self.app(scope, receive, send)
+            return
+
+        incoming = dict(scope.get("headers") or []).get(b"x-request-id", b"")
+        candidate = incoming.decode("latin-1", "ignore")
+        request_id = candidate if _RID_RE.match(candidate) else uuid.uuid4().hex
+        started = time.perf_counter()
+        status = {"code": 0}
+
+        async def send_with_context(message):
+            if message["type"] == "http.response.start":
+                status["code"] = message["status"]
+                message["headers"] = list(message.get("headers") or []) + [
+                    (b"x-request-id", request_id.encode("latin-1"))
+                ]
+            await send(message)
+
+        try:
+            await self.app(scope, receive, send_with_context)
+        finally:
+            elapsed_ms = (time.perf_counter() - started) * 1000.0
+            log.info(
+                "%s %s -> %s %.1fms rid=%s",
+                scope.get("method"),
+                scope.get("path"),
+                status["code"] or "-",
+                elapsed_ms,
+                request_id,
+            )
 
 app = FastAPI(
     title="SubsurfaceExplorer API",
@@ -54,6 +103,7 @@ app.add_middleware(
     allow_methods=["GET", "POST", "OPTIONS"],
     allow_headers=["Content-Type", "X-API-Key"],
 )
+app.add_middleware(RequestContextMiddleware)
 
 # Deep temporal-processing endpoints (acquire → indices → anomaly → fusion).
 app.include_router(deep_router)
@@ -115,6 +165,31 @@ def health() -> HealthResponse:
         version=__version__,
         time_utc=datetime.now(timezone.utc).isoformat(timespec="seconds"),
     )
+
+
+@app.get("/api/v1/ready")
+def ready():
+    """Readiness probe: the process is up *and* its artifact volume is writable.
+
+    Liveness (``/api/v1/health``) intentionally performs no I/O so a busy disk can
+    never make an otherwise healthy process look dead.
+    """
+    from .deep.pipeline import data_dir
+
+    directory = data_dir()
+    checks = {"artifacts_dir": True}
+    try:
+        os.makedirs(directory, exist_ok=True)
+        with tempfile.NamedTemporaryFile(dir=directory, prefix=".ready-", delete=True):
+            pass
+    except OSError as exc:
+        checks["artifacts_dir"] = False
+        log.error("Readiness check failed for %s: %s", directory, exc)
+        return JSONResponse(
+            status_code=503,
+            content={"status": "degraded", "version": __version__, "checks": checks},
+        )
+    return {"status": "ready", "version": __version__, "checks": checks}
 
 
 @app.post("/api/v1/regions/validate", response_model=RegionCheckOut)

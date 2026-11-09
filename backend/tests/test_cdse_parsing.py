@@ -1,4 +1,4 @@
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 from subsurface_api.providers import cdse
 
@@ -75,9 +75,10 @@ def test_search_products_warns_when_all_cloudy():
     assert out["warnings"]
 
 
-def test_search_products_raises_on_http_error():
-    with patch("subsurface_api.providers.cdse.requests.get") as mock_get:
-        mock_get.return_value.status_code = 429
+def test_search_products_retries_transient_error_then_raises():
+    busy = MagicMock(status_code=429, headers={})
+    with patch("subsurface_api.providers.cdse.requests.get", return_value=busy) as mock_get, \
+         patch("subsurface_api.providers.cdse._sleep") as sleep:
         try:
             cdse.search_products(RING, "2025-01-01", "2025-02-01", 30.0, 10)
             raised = False
@@ -85,6 +86,8 @@ def test_search_products_raises_on_http_error():
             raised = True
             assert "429" in str(exc)
         assert raised
+    assert mock_get.call_count == 3
+    assert sleep.call_count == 2
 
 
 # ------------------------------------------------- deep Process API evalscript

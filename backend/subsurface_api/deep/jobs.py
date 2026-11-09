@@ -9,21 +9,27 @@ artifact directories.
 from __future__ import annotations
 
 import logging
-import os
 import shutil
 import threading
 import traceback
-import uuid
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from typing import Dict, List, Optional
 
-from .pipeline import DeepParams, data_dir, job_dir, new_job_id, run_live, run_selftest
+from .outputs import job_dir
+from .pipeline import DeepParams, data_dir, new_job_id, run_live, run_selftest
 
 log = logging.getLogger("subsurface_api.deep.jobs")
 
 MAX_RETAINED = 20
+# Deep runs are CPU/RAM heavy; a bounded active queue keeps one caller from exhausting
+# the worker's memory or starving every other request.
+MAX_ACTIVE_JOBS = 4
+
+
+class QueueFull(RuntimeError):
+    """Raised when the active deep-processing queue has no free slot."""
 
 
 @dataclass
@@ -80,8 +86,15 @@ class JobManager:
                 "resolution_m": params.resolution_m,
             },
         )
-        job._dir = job_dir(data_dir(), job_id)
         with self._lock:
+            active = sum(
+                1 for j in self._jobs.values() if j.status in ("queued", "running")
+            )
+            if active >= MAX_ACTIVE_JOBS:
+                raise QueueFull(
+                    f"Deep-processing queue is full ({active} active jobs); retry shortly."
+                )
+            job._dir = job_dir(data_dir(), job_id)
             self._jobs[job_id] = job
             self._prune_locked()
         self._pool.submit(self._worker, job, params, mode)

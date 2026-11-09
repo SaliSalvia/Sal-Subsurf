@@ -9,7 +9,6 @@ import numpy as np
 import pytest
 
 from subsurface_api.deep.pipeline import (
-    MAX_NATIVE_SIDE_PX,
     DeepParams,
     _native_grid,
     _tile_plan,

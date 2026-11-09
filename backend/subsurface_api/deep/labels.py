@@ -23,7 +23,7 @@ from typing import Dict, List, Optional, Sequence, Tuple
 
 import numpy as np
 
-from ..geo import haversine_m, spherical_area_m2
+from ..geo import spherical_area_m2
 from .fusion import classify_component
 
 LngLat = Tuple[float, float]
