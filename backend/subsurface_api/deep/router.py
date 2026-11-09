@@ -6,6 +6,8 @@ import hmac
 import logging
 import os
 import re
+import shutil
+import threading
 from datetime import date as _date, datetime, timedelta, timezone
 from typing import List, Optional
 
@@ -13,6 +15,8 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import FileResponse, JSONResponse
 from pydantic import BaseModel, Field, field_validator
 
+from ..geo import normalize_ring
+from ..validation import validate_region
 from . import cdse_process
 from .jobs import QueueFull, manager
 from .outputs import safe_filename
@@ -118,6 +122,14 @@ def capabilities() -> dict:
 @router.post("/analyze", dependencies=[Depends(require_api_key)])
 def analyze(req: DeepAnalyzeRequest) -> dict:
     _validate_window(req.date_from, req.date_to)
+    # Same strict geometry gate as the catalog/terrain endpoints: a
+    # self-intersecting, out-of-range or oversized polygon must never reach the
+    # Process API. Normalising also drops a duplicated closing vertex, which
+    # would otherwise be sent as an invalid ring.
+    check = validate_region(req.polygon)
+    if not check.valid:
+        raise HTTPException(status_code=400, detail=check.issues)
+    ring = [[float(lon), float(lat)] for lon, lat in normalize_ring(req.polygon)]
     if req.mode == "live" and not cdse_process.credentials_present():
         raise HTTPException(
             status_code=503,
@@ -128,7 +140,7 @@ def analyze(req: DeepAnalyzeRequest) -> dict:
             ),
         )
     params = DeepParams(
-        polygon=req.polygon,
+        polygon=ring,
         date_from=req.date_from,
         date_to=req.date_to,
         grid=req.grid,
@@ -200,6 +212,27 @@ def job_file(job_id: str, filename: str):
     return FileResponse(path, media_type=media, filename=safe)
 
 
+SELFTEST_KEEP = 10
+# Selftest is a synchronous, RAM-heavy diagnostic. Two concurrent runs are
+# plenty for humans; a third caller gets a retryable 429 instead of pushing the
+# host into swap. (Deep /analyze has its own bounded job queue.)
+_SELFTEST_SLOTS = threading.BoundedSemaphore(2)
+
+
+def _prune_selftest_dirs(base: str, keep: int = SELFTEST_KEEP) -> None:
+    """Delete old ``selftest-*`` artifact directories, keeping the newest ``keep``.
+
+    These runs are not registered with the job manager, so without this they
+    would accumulate until the artifact volume fills up.
+    """
+    try:
+        names = sorted(n for n in os.listdir(base) if n.startswith("selftest-"))
+    except OSError:
+        return
+    for name in names[: max(0, len(names) - keep)]:
+        shutil.rmtree(os.path.join(base, name), ignore_errors=True)
+
+
 @router.post("/selftest", dependencies=[Depends(require_api_key)])
 def selftest(grid: int = 192, resolution_m: Optional[float] = None,
               fusion_mode: str = "cpf", n_surrogates: int = 199) -> dict:
@@ -208,38 +241,49 @@ def selftest(grid: int = 192, resolution_m: Optional[float] = None,
     Returns are flagged ``synthetic: true`` everywhere — detections found here
     live on a deterministic planted anomaly, not on real terrain.
     """
-    grid_c = int(min(256, max(64, grid)))
-    fusion_mode = "legacy" if fusion_mode == "legacy" else "cpf"
-    res_m = None if resolution_m is None else float(min(100.0, max(10.0, resolution_m)))
-    n_surr = int(min(999, max(0, n_surrogates)))
-    polygon = [[50.0, 29.0], [50.12, 29.0], [50.12, 29.09], [50.0, 29.09]]
-    today = datetime.now(timezone.utc).date()
-    params = DeepParams(
-        polygon=polygon,
-        date_from=(today - timedelta(days=30)).isoformat(),
-        date_to=today.isoformat(),
-        grid=grid_c,
-        fusion_mode=fusion_mode,
-        n_surrogates=n_surr,
-        resolution_m=res_m,
-    )
-    from .outputs import job_dir
-    from .pipeline import data_dir
+    if not _SELFTEST_SLOTS.acquire(blocking=False):
+        raise HTTPException(
+            status_code=429,
+            detail="Two selftest runs are already in flight; retry in a few seconds.",
+            headers={"Retry-After": "15"},
+        )
+    try:
+        grid_c = int(min(256, max(64, grid)))
+        fusion_mode = "legacy" if fusion_mode == "legacy" else "cpf"
+        res_m = None if resolution_m is None else float(min(100.0, max(10.0, resolution_m)))
+        n_surr = int(min(999, max(0, n_surrogates)))
+        polygon = [[50.0, 29.0], [50.12, 29.0], [50.12, 29.09], [50.0, 29.09]]
+        today = datetime.now(timezone.utc).date()
+        params = DeepParams(
+            polygon=polygon,
+            date_from=(today - timedelta(days=30)).isoformat(),
+            date_to=today.isoformat(),
+            grid=grid_c,
+            fusion_mode=fusion_mode,
+            n_surrogates=n_surr,
+            resolution_m=res_m,
+        )
+        from .outputs import job_dir
+        from .pipeline import data_dir
 
-    out = job_dir(data_dir(), f"selftest-{datetime.now(timezone.utc).strftime('%Y%m%dT%H%M%SZ')}")
-    report = run_selftest(params.sanitized(), [(p[0], p[1]) for p in polygon], None, out)
-    return {
-        "ok": report.get("components_detected", 0) >= 0,
-        "synthetic": True,
-        "output_dir": os.path.basename(out),
-        "summary": {
-            "mode": report["mode"],
+        base = data_dir()
+        _prune_selftest_dirs(base)
+        out = job_dir(base, f"selftest-{datetime.now(timezone.utc).strftime('%Y%m%dT%H%M%SZ')}")
+        report = run_selftest(params.sanitized(), [(p[0], p[1]) for p in polygon], None, out)
+        return {
+            "ok": report.get("components_detected", 0) >= 0,
             "synthetic": True,
-            "scenes": report["scenes_accepted"],
-            "components": report["components_detected"],
-            "high_or_medium": report["components_high_or_medium"],
-            "model": report["model_used"],
-            "fusion_mode": report.get("fusion_mode"),
-        },
-        "report": report,
-    }
+            "output_dir": os.path.basename(out),
+            "summary": {
+                "mode": report["mode"],
+                "synthetic": True,
+                "scenes": report["scenes_accepted"],
+                "components": report["components_detected"],
+                "high_or_medium": report["components_high_or_medium"],
+                "model": report["model_used"],
+                "fusion_mode": report.get("fusion_mode"),
+            },
+            "report": report,
+        }
+    finally:
+        _SELFTEST_SLOTS.release()

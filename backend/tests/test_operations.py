@@ -98,3 +98,76 @@ def test_job_manager_enforces_active_cap(tmp_path, monkeypatch):
     with pytest.raises(QueueFull):
         manager.submit(params, "selftest")
     manager._pool.shutdown(wait=False)
+
+
+def test_deep_analyze_rejects_invalid_geometry():
+    payload = {
+        "polygon": [[0.0, 0.0], [1.0, 1.0], [1.0, 0.0], [0.0, 1.0]],  # bow-tie
+        "date_from": str(date.today() - timedelta(days=10)),
+        "date_to": str(date.today()),
+        "mode": "selftest",
+    }
+    r = client.post("/api/v1/deep/analyze", json=payload)
+    assert r.status_code == 400
+    assert r.json()["detail"]
+
+
+def test_deep_analyze_normalises_closed_ring(monkeypatch):
+    from subsurface_api.deep import router as deep_router
+
+    captured = {}
+
+    def fake_submit(params, mode):
+        captured["polygon"] = params.polygon
+        return "job-test"
+
+    monkeypatch.setattr(deep_router.manager, "submit", fake_submit)
+    monkeypatch.setattr(deep_router.manager, "get", lambda job_id: None)
+    payload = {
+        "polygon": [list(p) for p in SQUARE] + [list(SQUARE[0])],  # closed ring
+        "date_from": str(date.today() - timedelta(days=10)),
+        "date_to": str(date.today()),
+        "mode": "selftest",
+    }
+    r = client.post("/api/v1/deep/analyze", json=payload)
+    assert r.status_code == 200
+    assert r.json()["job_id"] == "job-test"
+    assert captured["polygon"] == [list(p) for p in SQUARE]
+
+
+def test_fetch_scene_stack_does_not_sleep_after_last_attempt():
+    from subsurface_api.deep.cdse_process import DeepFetchError, fetch_scene_stack
+
+    busy = MagicMock(status_code=503, headers={})
+    with patch("subsurface_api.deep.cdse_process.requests.post", return_value=busy), \
+         patch("subsurface_api.deep.cdse_process.time.sleep") as sleep:
+        with pytest.raises(DeepFetchError):
+            fetch_scene_stack("token", RING, "2025-01-01", 16, 16, retries=2)
+    assert sleep.call_count == 1
+
+
+def test_prune_selftest_dirs_keeps_newest(tmp_path):
+    from subsurface_api.deep.router import _prune_selftest_dirs
+
+    for i in range(6):
+        (tmp_path / f"selftest-2026010{i}T000000Z").mkdir()
+    (tmp_path / "20260101T000000Z-job").mkdir()  # not a selftest directory
+    _prune_selftest_dirs(str(tmp_path), keep=2)
+    names = sorted(p.name for p in tmp_path.iterdir())
+    kept = [n for n in names if n.startswith("selftest-")]
+    assert kept == ["selftest-20260104T000000Z", "selftest-20260105T000000Z"]
+    assert "20260101T000000Z-job" in names
+
+
+def test_selftest_rejects_when_slots_exhausted():
+    from subsurface_api.deep import router as deep_router
+
+    assert deep_router._SELFTEST_SLOTS.acquire(blocking=False)
+    assert deep_router._SELFTEST_SLOTS.acquire(blocking=False)
+    try:
+        r = client.post("/api/v1/deep/selftest?grid=64")
+        assert r.status_code == 429
+        assert r.headers.get("retry-after") == "15"
+    finally:
+        deep_router._SELFTEST_SLOTS.release()
+        deep_router._SELFTEST_SLOTS.release()

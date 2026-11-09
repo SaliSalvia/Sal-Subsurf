@@ -212,10 +212,13 @@ def fetch_scene_stack(
                 raise DeepFetchError(
                     f"Process API HTTP {resp.status_code} for {date_iso}: {detail}"
                 )
-        sleep_s = 4.0 * attempt
-        log.info("CDSE fetch retry %d/%d for %s (%s) — sleeping %.0fs",
-                 attempt, retries, date_iso, last_err, sleep_s)
-        time.sleep(sleep_s)
+        # Never sleep after the final attempt: it only delays the error by
+        # 4-12 s per date and buys no extra chance of success.
+        if attempt < max(1, retries):
+            sleep_s = 4.0 * attempt
+            log.info("CDSE fetch retry %d/%d for %s (%s) — sleeping %.0fs",
+                     attempt, retries, date_iso, last_err, sleep_s)
+            time.sleep(sleep_s)
     raise DeepFetchError(f"Process API failed for {date_iso}: {last_err}")
 
 

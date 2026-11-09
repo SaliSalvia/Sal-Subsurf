@@ -9,6 +9,7 @@ import re
 import tempfile
 import time
 import uuid
+from contextlib import asynccontextmanager
 from datetime import date, datetime, timedelta, timezone
 
 from fastapi import FastAPI, HTTPException
@@ -79,9 +80,19 @@ class RequestContextMiddleware:
                 request_id,
             )
 
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Release the deep-processing executor when the server stops."""
+    yield
+    from .deep.jobs import manager as deep_manager
+
+    deep_manager.shutdown()
+
+
 app = FastAPI(
     title="SubsurfaceExplorer API",
     version=__version__,
+    lifespan=lifespan,
     description=(
         "Evidence-aware geospatial workspace API. Strict polygon validation, live "
         "Sentinel-2 L2A catalog metadata search (Copernicus Data Space Ecosystem, "
@@ -101,7 +112,9 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=_cors_origins,
     allow_methods=["GET", "POST", "OPTIONS"],
-    allow_headers=["Content-Type", "X-API-Key"],
+    # X-Request-ID is echoed so browser clients can correlate their own requests
+    # with the server log line.
+    allow_headers=["Content-Type", "X-API-Key", "X-Request-ID"],
 )
 app.add_middleware(RequestContextMiddleware)
 

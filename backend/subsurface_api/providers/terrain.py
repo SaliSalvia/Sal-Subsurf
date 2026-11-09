@@ -227,6 +227,14 @@ def analyze_region(
         )
 
     nodata_fraction = float(np.isnan(grid).mean())
+    # A mostly-empty grid still yields numbers (min/max/mean of the few covered
+    # cells), but they describe a sliver of the region while looking authoritative.
+    # Refuse instead of returning a misleading report.
+    if nodata_fraction > 0.5:
+        raise RuntimeError(
+            f"Only {100.0 * (1.0 - nodata_fraction):.0f}% of the DEM grid could be "
+            "sampled (missing tiles); retry, or sketch a smaller region."
+        )
     mean_elev = float(np.nanmean(grid)) if not np.isnan(grid).all() else float("nan")
     if not math.isfinite(mean_elev):
         # Tiles downloaded but none of them cover the sampling grid (e.g. all overlapping

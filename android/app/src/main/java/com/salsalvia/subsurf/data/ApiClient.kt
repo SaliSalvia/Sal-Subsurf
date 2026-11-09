@@ -44,7 +44,12 @@ object ApiClient {
         })
         .build()
 
-    private val cache = HashMap<String, SubsurfApi>()
+    // Small LRU: the Settings screen can change the base URL repeatedly, and a
+    // plain map would keep a Retrofit/OkHttp stack alive for every URL ever tried.
+    private val cache = object : LinkedHashMap<String, SubsurfApi>(8, 0.75f, true) {
+        override fun removeEldestEntry(eldest: MutableMap.MutableEntry<String, SubsurfApi>?) =
+            size > 8
+    }
 
     @Synchronized
     fun api(baseUrl: String): SubsurfApi {

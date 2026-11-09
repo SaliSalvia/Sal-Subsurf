@@ -100,6 +100,10 @@ class JobManager:
         self._pool.submit(self._worker, job, params, mode)
         return job_id
 
+    def shutdown(self) -> None:
+        """Stop accepting work; queued futures are cancelled, running work is left to finish."""
+        self._pool.shutdown(wait=False, cancel_futures=True)
+
     def get(self, job_id: str) -> Optional[Job]:
         with self._lock:
             return self._jobs.get(job_id)

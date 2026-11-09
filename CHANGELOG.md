@@ -17,6 +17,9 @@ Operational hardening pass — no change to the scientific models or API contrac
   `Retry-After` instead of queueing unbounded RAM-heavy jobs.
 - Catalog responses now report the true `total_matched` via OData `$count=true`.
 - CI gates: Android `:app:lintDebug` (with `abortOnError = true`) and backend `ruff` E9/F.
+- Selftest runs are capped at two concurrent executions (429 + `Retry-After`) and their
+  artifact directories are pruned to the ten newest, so diagnostics cannot fill the volume.
+- CORS preflights may send `X-Request-ID`; the deep executor shuts down with the app.
 
 ### Changed
 - Copernicus catalog calls retry transient 429/5xx responses with capped exponential
@@ -27,6 +30,11 @@ Operational hardening pass — no change to the scientific models or API contrac
 - Android: `busy`/`terrainBusy` are set before the coroutine starts (double-tap race), and a
   late response is discarded when the sketch changed while the request was in flight.
 - Android: HTTP logging is disabled in release builds so request URLs never reach logcat.
+- Deep `/analyze` now applies the same strict geometry validation as the catalog and terrain
+  endpoints and normalises closed rings before they reach the Process API.
+- A failed CDSE pixel fetch no longer sleeps after its final attempt (4–12 s saved per date).
+- Terrain analysis refuses to report statistics when more than half of the DEM grid is missing.
+- The Android Retrofit cache is a small LRU instead of an unbounded map.
 
 ## [1.4.0] - 2026-11-08
 
